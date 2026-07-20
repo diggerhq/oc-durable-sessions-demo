@@ -51,6 +51,8 @@ branches, and stop their sandboxes when they are no longer useful.
 
 ## Controls
 
+- switch between the spacious **Concept** view and the exact **Full source**
+  imported by the local API;
 - edit the Slack message;
 - click **Run** or press `R` while focus is outside the editor;
 - open the sandbox as soon as it exists;
@@ -60,8 +62,9 @@ branches, and stop their sandboxes when they are no longer useful.
 
 ```text
 src/lib/demo.ts                    code shown on screen
+src/lib/naive-sandbox-run.ts       exact source shown and executed
 src/components/                    code and live-run panels
-server/index.ts                    real sandbox → Claude Code → PR run
+server/index.ts                    local API and run projection
 notes/demo-script.md               recording sequence
 notes/api-gap-ledger.md            contracts and durability gaps
 notes/durability-pivot-prompt.md   durability-focused brief

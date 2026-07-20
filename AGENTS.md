@@ -12,8 +12,10 @@ them with OpenComputer Durable Agent Sessions.
 3. `notes/durability-pivot-prompt.md` — the prompt that narrowed the story.
 4. `notes/demo-script.md` — the recording sequence.
 5. `notes/api-gap-ledger.md` — public contracts, observed gaps, and later work.
-6. `src/lib/demo.ts` — the code the viewer sees.
-7. `server/index.ts` — the live implementation.
+6. `src/lib/demo.ts` — the conceptual code the viewer sees first.
+7. `src/lib/naive-sandbox-run.ts` — exact runner source shown by the Full
+   source toggle and imported by the server.
+8. `server/index.ts` — the local API and in-memory run projection.
 
 ## Invariants
 
@@ -28,6 +30,8 @@ them with OpenComputer Durable Agent Sessions.
   demo repository.
 - A successful run is not complete until the server verifies an actual open
   pull-request URL for that run's branch.
+- The Full source view imports `naive-sandbox-run.ts` as raw text while the
+  server imports its function. Do not duplicate or hand-maintain that source.
 - The sandbox stays available long enough to open it during the demo. Do not
   kill it on success.
 

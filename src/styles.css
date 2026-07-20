@@ -147,11 +147,33 @@ textarea:focus-visible,
   font-weight: 650;
 }
 
-.contract-tag {
-  color: #7ed49e;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.code-view-switch {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid #3a3b37;
+  border-radius: 3px;
+  background: #181917;
+}
+
+.code-view-switch button {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 2px;
+  color: #888a84;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.code-view-switch button:hover:not(.active) {
+  color: #c6c7c1;
+}
+
+.code-view-switch button.active {
+  color: #f1f1ed;
+  background: #343531;
 }
 
 .code-scroll {

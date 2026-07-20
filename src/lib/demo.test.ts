@@ -8,10 +8,18 @@ describe("durability demo", () => {
   });
 
   it("shows the same public primitives used by the live adapter", () => {
-    expect(activeSlide.code).toContain("Sandbox.create");
-    expect(activeSlide.code).toContain("sandbox.exec.run");
-    expect(activeSlide.code).toContain("sandbox.files.write");
-    expect(activeSlide.code).toContain("claude -p");
-    expect(activeSlide.code).not.toMatch(/mock|stand-in|sessions\.create/i);
+    const concept = activeSlide.codeViews.find((view) => view.id === "concept");
+    expect(concept?.code).toContain("Sandbox.create");
+    expect(concept?.code).toContain("sandbox.exec.run");
+    expect(concept?.code).toContain("sandbox.files.write");
+    expect(concept?.code).toContain("claude -p");
+    expect(concept?.code).not.toMatch(/mock|stand-in|sessions\.create/i);
+  });
+
+  it("exposes the exact runner source used by the server", () => {
+    const source = activeSlide.codeViews.find((view) => view.id === "source");
+    expect(source?.filename).toBe("naive-sandbox-run.ts");
+    expect(source?.code).toContain("export async function runNaiveSandbox");
+    expect(source?.code).toContain("Claude Code finished without opening");
   });
 });

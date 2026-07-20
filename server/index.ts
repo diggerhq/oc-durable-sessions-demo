@@ -6,13 +6,12 @@ import {
   type ServerResponse,
 } from "node:http";
 import process from "node:process";
-import { Sandbox } from "@opencomputer/sdk";
-import { Image } from "@opencomputer/sdk/node";
 import type {
   DemoConfig,
   DemoRun,
   RunStage,
 } from "../src/lib/api";
+import { runNaiveSandbox } from "../src/lib/naive-sandbox-run";
 
 function loadLocalEnv(file: string): void {
   try {
@@ -53,7 +52,6 @@ const targetRepo = normalizeRepo(
 const targetBranch = normalizeRef(
   process.env.DEMO_TARGET_BRANCH?.trim() || "main",
 );
-const targetRepoUrl = `https://github.com/${targetRepo}.git`;
 
 const runs = new Map<string, DemoRun>();
 const requestRuns = new Map<string, string>();
@@ -82,10 +80,6 @@ function normalizeRef(value: string): string {
     throw new Error("DEMO_TARGET_BRANCH is not a valid Git ref.");
   }
   return value;
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'\"'\"'`)}'`;
 }
 
 function missingConfig(): string[] {
@@ -177,167 +171,38 @@ function currentRun(run: DemoRun): DemoRun {
   };
 }
 
-function assertSuccess(
-  result: { exitCode: number; stdout: string; stderr: string },
-  action: string,
-): void {
-  if (result.exitCode === 0) return;
-  const detail = safeText(result.stderr.trim() || result.stdout.trim(), 1_000);
-  throw new Error(
-    `${action} failed with exit code ${result.exitCode}${
-      detail ? `: ${detail}` : "."
-    }`,
-  );
-}
-
-function parseClaudeResult(stdout: string): {
-  result?: string;
-  sessionId?: string;
-} {
-  const trimmed = stdout.trim();
-  if (!trimmed) return {};
-  try {
-    const value = JSON.parse(trimmed) as Record<string, unknown>;
-    return {
-      result:
-        typeof value.result === "string"
-          ? safeText(value.result)
-          : safeText(trimmed),
-      sessionId:
-        typeof value.session_id === "string" ? value.session_id : undefined,
-    };
-  } catch {
-    return { result: safeText(trimmed) };
-  }
-}
-
-function validPullRequestUrl(value: string): string | undefined {
-  const match = value.match(
-    new RegExp(
-      `https://github\\.com/${targetRepo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/pull/\\d+`,
-    ),
-  );
-  return match?.[0];
-}
-
 async function executeRun(run: DemoRun, message: string): Promise<void> {
-  let sandbox: Sandbox | undefined;
   try {
     if (!apiKey || !anthropicApiKey || !githubToken) {
       throw new Error(`Missing ${missingConfig().join(", ")}.`);
     }
 
-    transition(run, "preparing_image", "Creating sandbox");
-    const image = Image.base()
-      .aptInstall(["gh"])
-      .runCommands(
-        "sudo node /usr/lib/node_modules/@anthropic-ai/claude-code/install.cjs",
-      );
-    sandbox = await Sandbox.create({
-      apiKey,
-      apiUrl: sandboxApiUrl,
-      image,
-      timeout: 15 * 60,
-      memoryMB: 4_096,
-      metadata: {
-        demo: "durable-sessions-naive",
-        run: run.id,
-      },
-    });
-
-    run.sandbox = {
-      id: sandbox.id,
-      dashboardUrl: `${dashboardBase}/sandboxes/${encodeURIComponent(sandbox.id)}`,
-    };
-
-    const branch = `oc-demo/naive-${run.id.slice(0, 8)}`;
-    run.branch = branch;
-    transition(run, "preparing_repository", "Checking out repository");
-
-    const prepare = await sandbox.exec.run(
-      [
-        "set -eu",
-        "gh auth setup-git",
-        `git config --global user.name ${shellQuote("OpenComputer Demo")}`,
-        `git config --global user.email ${shellQuote("demo@opencomputer.dev")}`,
-        "rm -rf /workspace/repo",
-        `git clone --depth 1 --branch ${shellQuote(targetBranch)} ${shellQuote(targetRepoUrl)} /workspace/repo`,
-        `git -C /workspace/repo switch -c ${shellQuote(branch)}`,
-      ].join("\n"),
+    const result = await runNaiveSandbox(
       {
-        timeout: 120,
-        env: { GH_TOKEN: githubToken },
+        apiKey,
+        apiUrl: sandboxApiUrl,
+        anthropicApiKey,
+        githubToken,
+        targetRepo,
+        targetBranch,
+        message,
+        runId: run.id,
+      },
+      (event) => {
+        if (event.sandboxId) {
+          run.sandbox = {
+            id: event.sandboxId,
+            dashboardUrl: `${dashboardBase}/sandboxes/${encodeURIComponent(event.sandboxId)}`,
+          };
+        }
+        if (event.branch) run.branch = event.branch;
+        transition(run, event.stage, event.label);
       },
     );
-    assertSuccess(prepare, "Repository checkout");
 
-    const task = [
-      "You are handling a software change requested in Slack.",
-      `The repository is checked out on branch ${branch}.`,
-      "Implement only the request below.",
-      "Run the relevant tests.",
-      "Commit the intended changes and push this branch to origin.",
-      `Open a non-draft pull request against ${targetBranch} with gh pr create.`,
-      "Do not stop until the pull request exists.",
-      "End your response with the pull request URL.",
-      "",
-      "Slack message:",
-      message,
-    ].join("\n");
-    await sandbox.files.write("/tmp/task.txt", task);
-
-    transition(run, "running_claude", "Claude Code is working");
-    const claude = await sandbox.exec.run(
-      [
-        "claude --print",
-        "--bare",
-        "--dangerously-skip-permissions",
-        "--max-turns 30",
-        "--max-budget-usd 3",
-        "--output-format json",
-        "< /tmp/task.txt",
-      ].join(" "),
-      {
-        cwd: "/workspace/repo",
-        timeout: 10 * 60,
-        env: {
-          ANTHROPIC_API_KEY: anthropicApiKey,
-          GH_TOKEN: githubToken,
-        },
-      },
-    );
-    assertSuccess(claude, "Claude Code");
-
-    const parsed = parseClaudeResult(claude.stdout);
-    run.result = parsed.result;
-    run.claudeSessionId = parsed.sessionId;
-    transition(run, "verifying_pull_request", "Verifying pull request");
-
-    const pullRequest = await sandbox.exec.run(
-      [
-        "gh pr list",
-        `--repo ${shellQuote(targetRepo)}`,
-        `--head ${shellQuote(branch)}`,
-        "--state open",
-        "--json url",
-        "--jq '.[0].url'",
-      ].join(" "),
-      {
-        cwd: "/workspace/repo",
-        timeout: 60,
-        env: { GH_TOKEN: githubToken },
-      },
-    );
-    assertSuccess(pullRequest, "Pull request verification");
-
-    const pullRequestUrl =
-      validPullRequestUrl(pullRequest.stdout) ||
-      validPullRequestUrl(run.result ?? "");
-    if (!pullRequestUrl) {
-      throw new Error("Claude Code finished without opening a pull request.");
-    }
-
-    run.pullRequestUrl = pullRequestUrl;
+    run.result = result.result ? safeText(result.result) : undefined;
+    run.claudeSessionId = result.claudeSessionId;
+    run.pullRequestUrl = result.pullRequestUrl;
     run.state = "succeeded";
     transition(run, "completed", "Pull request opened");
   } catch (error) {

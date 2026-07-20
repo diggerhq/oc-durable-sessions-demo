@@ -38,6 +38,11 @@ Then walk the code, briefly:
 4. turn the Slack message into execution instructions;
 5. pass the raw provider and repository credentials to Claude Code and run it.
 
+The **Concept** view is the talk track: three operations with deliberate white
+space. Use **Full source** only when someone asks whether the example elides the
+working details. That view is the exact runner module imported by the local API,
+not a second maintained snippet.
+
 Click **Run**.
 
 As soon as the sandbox link appears, open it in another tab. Show that the
