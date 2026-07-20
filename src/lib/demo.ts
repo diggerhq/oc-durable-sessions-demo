@@ -19,22 +19,19 @@ export interface DemoSlide {
 
 const conceptCode = `const sandbox = await Sandbox.create();
 
-// 1. Give Claude Code a repository.
-await sandbox.exec.run(
+await sandbox.exec.run(      // 1. Clone the repository.
   \`git clone \${repoUrl} /workspace/repo\`,
   { env: { GH_TOKEN } },
 );
 
-// 2. Turn the Slack message into a task.
-await sandbox.files.write(
+await sandbox.files.write(   // 2. Write the task.
   "/tmp/task.txt",
   \`Implement, test, and open a pull request.
 
 \${slackMessage}\`,
 );
 
-// 3. Let Claude Code work.
-await sandbox.exec.run(
+await sandbox.exec.run(      // 3. Run Claude Code.
   "claude -p < /tmp/task.txt",
   {
     cwd: "/workspace/repo",

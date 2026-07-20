@@ -13,6 +13,7 @@ describe("durability demo", () => {
     expect(concept?.code).toContain("sandbox.exec.run");
     expect(concept?.code).toContain("sandbox.files.write");
     expect(concept?.code).toContain("claude -p");
+    expect(concept?.code).not.toMatch(/^\s*\/\//m);
     expect(concept?.code).not.toMatch(/mock|stand-in|sessions\.create/i);
   });
 

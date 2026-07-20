@@ -201,18 +201,6 @@ textarea:focus-visible,
   padding-right: 32px;
 }
 
-.code-line.is-comment {
-  min-height: 1.05em;
-  line-height: 1.05;
-}
-
-.code-line.is-comment .line-number,
-.code-line.is-comment .line-source {
-  font-size: 0.8em;
-  font-weight: 560;
-  letter-spacing: 0.02em;
-}
-
 .code-line.is-empty {
   min-height: 0.55em;
   line-height: 0.55;

@@ -45,13 +45,11 @@ export function CodePanel({ slide }: CodePanelProps) {
               {tokens.map((line, index) => {
                 const lineNumber = index + 1;
                 const lineText = line.map((token) => token.content).join("");
-                const commentOnly = /^\s*\/\//.test(lineText);
                 const empty = lineText.trim().length === 0;
                 const emphasized = view.emphasisLines.includes(lineNumber);
                 const lineClassName = [
                   "code-line",
                   emphasized && "is-emphasized",
-                  commentOnly && "is-comment",
                   empty && "is-empty",
                 ]
                   .filter(Boolean)
