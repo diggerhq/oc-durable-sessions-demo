@@ -33,7 +33,9 @@ describe("durability demo", () => {
     const source = delivery?.codeViews.find((view) => view.id === "source");
 
     expect(concept?.code).toContain("onStdout(bytes)");
-    expect(concept?.code).toContain("run.messages.append");
+    expect(concept?.code).toContain("decoder.decode(bytes");
+    expect(concept?.code).toContain("event.event?.delta");
+    expect(concept?.code).toContain("runs.set(run.id, run)");
     expect(source?.code).toContain("export async function streamClaudeMessages");
     expect(source?.code).toContain("content_block_delta");
   });

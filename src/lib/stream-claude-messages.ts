@@ -36,6 +36,7 @@ export async function streamClaudeMessages(
       ANTHROPIC_API_KEY: config.anthropicApiKey,
       GH_TOKEN: config.githubToken,
     },
+    // This callback runs in the local API; the command above runs in the box.
     onStdout: (bytes) => relay.write(bytes),
     onStderr: (bytes) => {
       stderr += stderrDecoder.decode(bytes, { stream: true });

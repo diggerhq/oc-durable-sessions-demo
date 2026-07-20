@@ -42,22 +42,33 @@ await sandbox.exec.run(      // 3. Run Claude Code.
   },
 );`;
 
-const messageDeliveryConcept = `const lines = new JsonLineStream();
+const messageDeliveryConcept = `const command =
+  "claude --print --output-format stream-json --verbose " +
+  "--include-partial-messages < /tmp/task.txt"; // Inside sandbox.
 
-const process = await sandbox.exec.start(
-  "claude -p --output-format stream-json",
-  {
-    onStdout(bytes) {                  // Sandbox → local API.
-      for (const event of lines.write(bytes)) {
-        const text = readTextDelta(event);
-        if (text) run.messages.append(text); // Browser polls this.
-      }
-    },
+const decoder = new TextDecoder();
+let pending = "";
+const agentMessage = { text: "" };       // State owned by our app.
+run.messages.push(agentMessage);
+
+const process = await sandbox.exec.start("sh", {
+  args: ["-c", command],
+  onStdout(bytes) {
+    pending += decoder.decode(bytes, { stream: true });
+    const lines = pending.split("\\n");
+    pending = lines.pop() ?? "";
+    for (const line of lines) {
+      const event = JSON.parse(line);    // Claude-specific output.
+      const delta = event.event?.delta;
+      if (delta?.type !== "text_delta") continue;
+
+      agentMessage.text += delta.text;
+      runs.set(run.id, run);              // Browser polls our state.
+    }
   },
-);
+});
 
-await process.done;
-lines.end();`;
+await process.done;`;
 
 const defaultMessage =
   "Support milliseconds (ms) in parseDuration, so 250ms returns 250. Add coverage for combined values like 1s250ms.";
