@@ -10,9 +10,10 @@ OpenComputer team members running and recording local API demonstrations.
 
 ## Product Purpose
 
-Switch between Durable Agent Sessions SDK examples, run one, and inspect the
-returned session data. The demo may call the public API or a clearly identified
-mock or stand-in.
+Show a working agent that turns a Slack-style request into a pull request using
+only a sandbox, a checked-out repository, and Claude Code. Follow-on steps will
+use that naive implementation to make the need for durable agent sessions
+concrete.
 
 ## Brand Personality
 
@@ -20,19 +21,18 @@ Functional, terse, technical.
 
 ## Anti-references
 
-Marketing sites, presentation decks, narrative landing pages, hero copy,
-decorative storytelling, and explanations that compete with the code.
+Marketing sites, presentation decks, feature galleries, hero copy, decorative
+storytelling, mocks, and explanations that compete with the code.
 
 ## Design Principles
 
-- Put code first.
-- Keep only controls that select or run an example.
-- Make execution mode and results explicit.
+- Put runnable code first.
+- Show one idea per step.
+- Keep the request, live progress, sandbox, and PR visible.
 - Prefer legibility at screen-recording sizes over information density.
-- Keep proposed contracts distinguishable from public ones.
+- Use real public APIs and fail clearly when local credentials are absent.
 
 ## Accessibility & Inclusion
 
 Keyboard-accessible controls, visible focus states, WCAG AA contrast, and
 reduced-motion support.
-

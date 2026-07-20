@@ -1,8 +1,10 @@
-# Durable Agent Sessions API demo
+# Durable Agent Sessions demo
 
-A local UI for switching between SDK examples, running them, and inspecting the
-session response. It calls OpenComputer's public API where the contract exists
-and uses marked mocks or live stand-ins where it does not.
+A local, code-first demo. The current step creates a real OpenComputer sandbox,
+checks out a disposable repository, runs Claude Code on a Slack-style request,
+and opens a real pull request.
+
+There is no mock mode.
 
 ## Run it
 
@@ -14,53 +16,56 @@ npm run dev
 
 Open [http://localhost:4173](http://localhost:4173).
 
-The default `DEMO_MODE=auto` behavior is:
-
-- no API key or no agent id for a step → simulated receipt;
-- API key + that step's agent id → real `oc.sessions.create({ agent, input })`;
-- `DEMO_MODE=live` → fail clearly when live configuration is missing;
-- `DEMO_MODE=mock` → never call OpenComputer.
-
-The local Node process reads `.env.local`; the browser does not. Do not put
-`VITE_` in front of the org key.
-
-## Configure live steps
-
-Create or choose the agents you want to show, then add their ids to
-`.env.local`:
+Add three credentials to `.env.local`:
 
 ```bash
 OPENCOMPUTER_API_KEY=osb_...
-
-OC_DEMO_CLAUDE_AGENT_ID=agt_...
-OC_DEMO_CODEX_AGENT_ID=agt_...
-OC_DEMO_INLINE_AGENT_ID=agt_...
-OC_DEMO_SAVED_AGENT_ID=agt_...
-OC_DEMO_REPO_AGENT_ID=agt_...
-OC_DEMO_FLUE_AGENT_ID=agt_...
+ANTHROPIC_API_KEY=sk-ant-...
+GITHUB_TOKEN=github-token-with-push-access
 ```
 
-The first three examples display the proposed inline-agent SDK shape. Until
-that contract exists, their live mode calls the configured saved agent as a
-stand-in. The saved-agent and Flue examples use the public contract exactly.
-Prompt-and-skills repository agents are still a documented gap.
+`GITHUB_TOKEN` needs permission to push branches and open pull requests in
+`diggerhq/oc-agent-demo-target`. If the local GitHub CLI is authenticated with
+the right account, run the app without copying that token into the file:
+
+```bash
+GITHUB_TOKEN="$(gh auth token)" npm run dev
+```
+
+The browser never receives these values.
+
+## What Run does
+
+1. Builds or reuses a cached sandbox image containing GitHub CLI and a working
+   Claude Code binary.
+2. Creates a 4 GB sandbox with a 15-minute idle timeout.
+3. Passes the GitHub token to the checkout command and clones
+   `diggerhq/oc-agent-demo-target` onto a unique branch.
+4. Passes both raw tokens to Claude Code with the edited Slack message.
+5. Waits for Claude to test, commit, push, and open a pull request.
+6. Verifies the PR through GitHub CLI and exposes links to the sandbox and PR.
+
+The sandbox is intentionally left available so it can be opened in the
+OpenComputer dashboard during the recording. Close rehearsal PRs, delete their
+branches, and stop their sandboxes when they are no longer useful.
 
 ## Controls
 
-- click an example tab or use `←` / `→`;
-- click **Run** or press `R`;
-- edit the task before running;
-- open a live run directly in the OpenComputer dashboard from its receipt.
+- edit the Slack message;
+- click **Run** or press `R` while focus is outside the editor;
+- open the sandbox as soon as it exists;
+- open the verified PR when the run completes.
 
 ## Repository map
 
 ```text
-src/lib/scenarios.ts       examples, labels, and talk-track cues
-src/components/            code stage and run receipt
-server/index.ts            secret-safe live/mock adapter
-notes/demo-script.md       full recording sequence
-notes/api-gap-ledger.md    shipped vs. proposed contracts
-notes/original-prompt.md   original brief, unchanged
+src/lib/demo.ts                    code shown on screen
+src/components/                    code and live-run panels
+server/index.ts                    real sandbox → Claude Code → PR run
+notes/demo-script.md               recording sequence
+notes/api-gap-ledger.md            contracts and durability gaps
+notes/durability-pivot-prompt.md   durability-focused brief
+notes/original-prompt.md           original broader brief
 ```
 
 ## Verify

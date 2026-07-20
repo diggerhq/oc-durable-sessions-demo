@@ -1,24 +1,22 @@
 import { Highlight, themes } from "prism-react-renderer";
-import type { DemoScenario } from "../lib/scenarios";
+import type { DemoSlide } from "../lib/demo";
 
 interface CodePanelProps {
-  scenario: DemoScenario;
+  slide: DemoSlide;
 }
 
-export function CodePanel({ scenario }: CodePanelProps) {
+export function CodePanel({ slide }: CodePanelProps) {
   return (
-    <section className="code-panel" aria-label={`${scenario.navLabel} SDK example`}>
+    <section className="code-panel" aria-label={`${slide.navLabel} SDK example`}>
       <header className="panel-header code-panel-header">
-        <span>start-session.ts</span>
-        <span className={`contract-tag contract-${scenario.contractKind}`}>
-          {scenario.contractLabel}
-        </span>
+        <span>{slide.filename}</span>
+        <span className="contract-tag contract-public">{slide.contractLabel}</span>
       </header>
 
       <div className="code-scroll" tabIndex={0}>
         <Highlight
           theme={themes.vsDark}
-          code={scenario.code}
+          code={slide.code}
           language="tsx"
         >
           {({ className, style, tokens, getLineProps, getTokenProps }) => (
@@ -28,12 +26,12 @@ export function CodePanel({ scenario }: CodePanelProps) {
             >
               {tokens.map((line, index) => {
                 const lineNumber = index + 1;
-                const emphasized = scenario.emphasisLines.includes(lineNumber);
+                const emphasized = slide.emphasisLines.includes(lineNumber);
                 return (
                   <div
                     {...getLineProps({ line })}
                     className={`code-line${emphasized ? " is-emphasized" : ""}`}
-                    key={`${scenario.id}-${lineNumber}`}
+                    key={`${slide.id}-${lineNumber}`}
                   >
                     <span className="line-number" aria-hidden="true">
                       {String(lineNumber).padStart(2, "0")}

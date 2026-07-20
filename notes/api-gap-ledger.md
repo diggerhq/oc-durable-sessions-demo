@@ -1,141 +1,104 @@
-# API gap ledger
+# API and durability ledger
 
-This is the implementation boundary for the demo. “Shipped” means available in
-the default-branch TypeScript SDK and public API, not merely designed or present
-on an in-flight branch.
+This file records the boundary between the real first demo beat and the durable
+session behavior that later beats will introduce.
 
-## Scenario matrix
+## Current beat
 
-| Demo beat | What the viewer sees | Current backing | Status |
-| --- | --- | --- | --- |
-| Claude, one call | `sessions.create({ agent: { runtime: "claude" }, input })` | configured saved Claude agent | Proposed API, live stand-in or mock |
-| Codex, one line changed | inline runtime changes to `codex` | configured saved Codex agent | Proposed API, live stand-in or mock |
-| Inline prompt + skills | inline agent descriptor carries prompt and skill files | configured equivalent saved agent | Proposed API, live stand-in or mock |
-| Saved agent | `sessions.create({ agent: AGENT_ID, input })` | public Sessions API | Shipped |
-| Prompt/skills agent from repo | the same saved-agent call, definition follows Git | no built-in source profile | Mock until implemented |
-| Flue app | the same saved-agent call | deployed Flue agent | Shipped |
+| Operation | Backing | Status |
+| --- | --- | --- |
+| Define the sandbox image | `Image.base().aptInstall().runCommands()` | Public TypeScript SDK |
+| Create the sandbox | `Sandbox.create({ image, timeout, memoryMB })` | Public TypeScript SDK |
+| Clone and prepare the repository | `sandbox.exec.run()` | Public TypeScript SDK |
+| Write the Claude task | `sandbox.files.write()` | Public TypeScript SDK |
+| Pass raw credentials to checkout and Claude | `sandbox.exec.run({ env })` | Public TypeScript SDK |
+| Run Claude Code | `sandbox.exec.run()` | Public TypeScript SDK |
+| Inspect the sandbox | `/sandboxes/<sandbox-id>` dashboard route | Shipped dashboard |
+| Verify the PR | GitHub CLI against the disposable target | Live external API |
 
-## Shipped contracts we should use, not rebuild
+There are no mocks, stand-ins, proposed calls, or required `sessions-api`
+changes in this beat.
 
-- `new OpenComputer({ apiKey })`
-- `oc.sessions.create({ agent, input, idempotencyKey? })`
-- a returned `Session` handle with `id`, `status`, `clientToken`, events, result,
-  turns, steering, cancellation, and archive
-- `oc.agents.create({ name, runtime, model, prompt, credential })`
-- `oc.agents.update(...)`, which produces a new revision for behavior changes
-- inline revision/deployment with prompt, model, and skill files
-- skill zip upload/removal, each producing a revision
-- immutable revision history and active-pointer rollback/promotion
-- per-session model override within the saved agent's runtime family
-- repository review/import and push-to-deploy for the `flue-app-v1` profile
-- Flue deployment from GitHub or `oc agent deploy`
-- dashboard session route: `https://app.opencomputer.dev/sessions/<session-id>`
+## Observed platform papercuts
 
-## Gap A — inline agent specification at session create
+These do not block the demo because its image repairs them explicitly.
 
-The public contract currently requires `agent: string`. The first three beats
-need a concise, honest one-call form without first managing a reusable agent.
+### Claude Code in the base image is currently incomplete
 
-Provisional demo shape:
+The current production base image has `/usr/bin/claude`, but invoking it reports
+that the platform-native optional binary was not installed. Running
 
-```ts
-type CreateSessionParams = {
-  agent:
-    | AgentId
-    | {
-        runtime?: "claude" | "codex";
-        model?: string;
-        prompt?: string;
-        skills?: Array<{ path: string; content: string; mode?: number }>;
-        credential?: "managed" | CredentialId;
-      };
-  input: string | Envelope;
-  // existing fields...
-};
+```bash
+sudo node /usr/lib/node_modules/@anthropic-ai/claude-code/install.cjs
 ```
 
-Recommended semantics to review before implementation:
+inside the image makes Claude Code 2.1.214 runnable. The demo keeps this step in
+the visible image definition. The base image should be fixed separately so a
+fresh sandbox's advertised Claude command works without repair.
 
-1. An inline descriptor is frozen directly into the session snapshot; it does
-   not create a reusable named Agent row.
-2. Omitted runtime/model/credential use documented org/platform defaults.
-3. Inline skills use the existing validated skill-file contract and limits.
-4. The response and event model are identical to saved-agent sessions.
-5. Idempotency fingerprints include the canonical inline descriptor.
-6. `agent: string` remains unchanged; mixing an id with inline behavior is
-   rejected rather than given precedence rules.
+### `Image` export and documentation disagree
 
-Questions that need a design decision:
+The TypeScript image reference shows:
 
-- Is an anonymous, session-pinned definition compatible with the product rule
-  that every session runs “on an agent,” or should SDK sugar create a hidden
-  reusable agent?
-- Do we want a default system prompt, or require `prompt` even in the minimal
-  example?
-- Should a runtime default its model, as the product design intends, even
-  though current agent creation requires `model`?
-- Does an inline definition appear anywhere in the dashboard as an ephemeral
-  agent, or only as a session snapshot?
+```ts
+import { Image } from "@opencomputer/sdk";
+```
 
-Owning implementation: `sessions-api` request/service/snapshot/idempotency,
-then `opencomputer` TypeScript SDK, public docs, and dashboard session summary.
+Version 0.12.4 exports `Image` only from `@opencomputer/sdk/node`. The demo uses
+the shipped subpath. Either the root export or the documentation should be
+corrected in `opencomputer`.
 
-## Gap B — source-controlled built-in agents
+### Sandbox-wide raw envs change the egress path
 
-Repository-first creation currently recognizes only a complete Flue
-application (`flue-app-v1`). A root containing `prompt.md` and `skills/` is
-intentionally unrecognized. The desired demo needs the previously designed
-fast-follow source profile for built-in agents.
+A live sandbox created with raw `envs` but no secret store could start and run
+local commands, while HTTPS through the injected platform proxy failed with
+status 407. A sandbox created without environment values keeps ordinary direct
+egress, and `exec.run({ env })` can pass the raw tokens to only the checkout and
+Claude processes. The demo uses that simpler public contract. This is still a
+deliberately naive credential model, not the recommended product security path.
 
-Minimum useful contract:
+## Deliberately naive durability boundary
 
-- deterministic `oc-soft-agent-v1` recognition;
-- `agent.toml` with runtime/model plus `prompt.md` and optional `skills/`;
-- review receipt pinned to exact repo/root/ref/sha;
-- import creates the saved agent, deployment source, first deployment, and
-  immutable revision;
-- production-branch pushes that touch the selected root create deployments;
-- source commit and actor are visible on deployments/revisions;
-- an invalid or type-changed source fails without disturbing the active
-  revision;
-- unlink stops future deploys but preserves agent and history.
+The working first beat leaves all of these responsibilities in the local demo
+application:
 
-Owning implementation: design 028 follow-up, `sessions-api` source router and
-deployment builder, then `opencomputer` SDK/dashboard/docs.
+- Sandbox creation has no caller-supplied idempotency key. The server dedupes a
+  repeated request id only in memory and only while this process survives.
+- `exec.run()` is synchronous. If the local process dies during Claude's run,
+  Claude may continue in the sandbox but the application loses its run record,
+  sandbox id, branch, progress, and completion path.
+- Progress is a local list of orchestration milestones, not a durable event log.
+- There is no durable session identity to reconnect, stream, steer, cancel,
+  fork, archive, or resume.
+- The application owns checkout, branch naming, Git identity, task formatting,
+  PR verification, sandbox sizing, timeout, and cleanup.
+- The Anthropic and GitHub credentials are passed directly to sandbox commands,
+  and the GitHub token has access broader than one ephemeral branch. There is no
+  per-run, repository-scoped capability or egress allowlist.
+- Claude Code runs with `--dangerously-skip-permissions` in a networked sandbox.
+- A successful sandbox is intentionally left alive for inspection and then
+  relies on its idle timeout; the application has no durable lifecycle policy.
 
-## Gap C — a first-class dashboard link in SDK output
+These are the source material for the next slides. Do not conceal them with
+local retry machinery before the durable-session comparison is designed.
 
-The API returns the durable session id and a browser-safe client token. The demo
-constructs `https://app.opencomputer.dev/sessions/<id>` locally and never exposes
-the token.
+## Current local adapter safeguards
 
-This is not a launch blocker. A convenience such as `session.dashboardUrl`
-could improve examples, but it couples the SDK to a hosted dashboard and needs
-an explicit product decision. The safe default is to keep constructing the
-link in application code.
+Safeguards that make a live demo responsible without pretending to make it
+durable:
 
-## Gap D — revision authorship legibility
+- credentials stay server-side and known secret values are redacted from
+  returned errors;
+- the target repository and base branch are validated configuration;
+- each run gets a unique branch;
+- the browser receives a scrubbed run projection, never raw SDK objects;
+- a run succeeds only after an open PR URL is independently resolved for its
+  exact branch;
+- the in-memory ledger is capped at 25 entries.
 
-The backend has deployment source/actor and an activation audit log. Before the
-repo beat is implemented, verify that the dashboard visibly answers:
+## Next contract work
 
-- which commit produced this revision;
-- who initiated the change;
-- whether it came from dashboard, SDK/CLI, or repository push;
-- which revision is active and how to compare/roll back.
-
-If the data exists but the UI does not make it legible, that is a dashboard gap,
-not a new persistence model.
-
-## Prototype adapter behavior
-
-`server/index.ts` chooses per step:
-
-- **public** — the shown code and live call both use a saved agent id;
-- **stand-in** — the shown inline contract is proposed, while the live call
-  invokes a preconfigured equivalent saved agent;
-- **simulated** — no API call is made.
-
-Every run receipt reports the mode. The browser receives neither the org key nor
-the returned client token.
-
+None is required before testing Step 1. Design the later comparison around the
+existing Durable Agent Sessions API first. Add or change platform APIs only
+when a concrete later beat cannot be expressed honestly with the shipped
+contract.

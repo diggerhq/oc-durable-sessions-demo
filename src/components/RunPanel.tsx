@@ -1,139 +1,159 @@
-import type {
-  ExecutionMode,
-  ScenarioConfig,
-  SessionReceipt,
-} from "../lib/api";
-import type { DemoScenario } from "../lib/scenarios";
-
-export type RunViewState =
-  | { state: "idle" }
-  | { state: "running" }
-  | { state: "success"; receipt: SessionReceipt }
-  | { state: "error"; message: string };
+import type { DemoConfig, DemoRun } from "../lib/api";
 
 interface RunPanelProps {
-  scenario: DemoScenario;
-  config: ScenarioConfig | null;
+  config: DemoConfig | null;
   configError?: string;
-  input: string;
-  run: RunViewState;
-  onInput: (value: string) => void;
+  message: string;
+  run: DemoRun | null;
+  runError?: string;
+  starting: boolean;
+  onMessage: (value: string) => void;
   onRun: () => void;
 }
 
-const modeLabel: Record<ExecutionMode, string> = {
-  checking: "Checking",
-  live: "Live",
-  "stand-in": "Live stand-in",
-  simulated: "Mock",
-  unavailable: "Not configured",
-};
+function formatDuration(milliseconds: number): string {
+  if (milliseconds < 1_000) return `${milliseconds} ms`;
+  return `${(milliseconds / 1_000).toFixed(milliseconds < 10_000 ? 1 : 0)} s`;
+}
 
 export function RunPanel({
-  scenario,
   config,
   configError,
-  input,
+  message,
   run,
-  onInput,
+  runError,
+  starting,
+  onMessage,
   onRun,
 }: RunPanelProps) {
-  const execution: ExecutionMode = config?.execution ?? "checking";
-  const shownExecution = configError ? "unavailable" : execution;
-  const unavailable = shownExecution === "unavailable";
-  const running = run.state === "running";
+  const configured = config?.execution === "live" && !configError;
+  const running = starting || run?.state === "running";
+  const buttonLabel = running ? "Running…" : run ? "Run again" : "Run";
 
   return (
-    <section className="run-panel" aria-label="Run session">
+    <section className="run-panel" aria-label="Run naive sandbox example">
       <header className="panel-header run-panel-header">
-        <span>Result</span>
+        <span>Run</span>
         <span
-          className={`execution-badge execution-${shownExecution}`}
-          title={configError ?? config?.detail}
+          className={`execution-badge execution-${configured ? "live" : "unavailable"}`}
+          title={configError ?? config?.missing.join(", ")}
         >
           <i aria-hidden="true" />
-          {modeLabel[shownExecution]}
+          {configured ? "Live" : "Not configured"}
         </span>
       </header>
 
       <div className="task-editor">
-        <label htmlFor="demo-task">Input</label>
+        <label htmlFor="slack-message">Slack message</label>
         <textarea
-          id="demo-task"
-          value={input}
-          onChange={(event) => onInput(event.target.value)}
-          rows={3}
+          disabled={running}
+          id="slack-message"
+          value={message}
+          onChange={(event) => onMessage(event.target.value)}
+          rows={5}
           spellCheck={false}
         />
         <div className="task-actions">
-          <span>{scenario.runtime}</span>
+          <span>{config?.targetRepo ?? "—"}</span>
           <button
             className="run-button"
-            disabled={running || unavailable || !input.trim()}
+            disabled={running || !configured || !message.trim()}
             onClick={onRun}
             type="button"
           >
-            {running ? "Running…" : "Run"}
+            {buttonLabel}
           </button>
         </div>
       </div>
 
       <div className="receipt-area" aria-live="polite">
-        {run.state === "idle" && (
+        {!run && !starting && !runError && (
           <div className="receipt-empty">
-            {configError ?? (unavailable ? config?.detail : "No result")}
+            {configError ??
+              (config?.execution === "unavailable"
+                ? `Missing ${config.missing.join(", ")}`
+                : "No run")}
           </div>
         )}
 
-        {run.state === "running" && (
+        {starting && !run && (
           <div className="receipt-empty receipt-running">
             <span className="button-spinner" aria-hidden="true" />
-            Creating session…
+            Starting…
           </div>
         )}
 
-        {run.state === "error" && (
+        {runError && !run && (
           <div className="receipt-error">
             <strong>Error</strong>
-            <p>{run.message}</p>
+            <p>{runError}</p>
             <button className="text-button" onClick={onRun} type="button">
               Retry
             </button>
           </div>
         )}
 
-        {run.state === "success" && (
+        {run && (
           <div className="receipt-success">
-            <div className="receipt-summary">
-              <div>
-                <span>Session</span>
-                <strong>{run.receipt.session.id}</strong>
+            {run.sandbox && (
+              <div className="receipt-summary">
+                <div>
+                  <span>Sandbox</span>
+                  <strong>{run.sandbox.id}</strong>
+                </div>
+                <span className={`receipt-status status-${run.state}`}>
+                  {run.state}
+                </span>
               </div>
-              <span className="receipt-status">{run.receipt.session.status}</span>
-            </div>
+            )}
+
+            <ol className="progress-list">
+              {run.progress.map((item, index) => {
+                const current =
+                  run.state === "running" && index === run.progress.length - 1;
+                return (
+                  <li className={current ? "current" : ""} key={`${item.at}-${item.stage}`}>
+                    <span aria-hidden="true" />
+                    <div>
+                      <strong>{item.label}</strong>
+                      <time dateTime={item.at}>
+                        {new Date(item.at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })}
+                      </time>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
 
             <div className="receipt-facts">
-              <span>{run.receipt.durationMs} ms</span>
-              <span>{modeLabel[run.receipt.execution]}</span>
-              {run.receipt.session.revision !== undefined && (
-                <span>revision {run.receipt.session.revision}</span>
+              <span>{formatDuration(run.durationMs)}</span>
+              {run.branch && <span>{run.branch}</span>}
+              {run.claudeSessionId && <span>claude {run.claudeSessionId}</span>}
+            </div>
+
+            <div className="result-links">
+              {run.sandbox && (
+                <a
+                  href={run.sandbox.dashboardUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Open sandbox ↗
+                </a>
+              )}
+              {run.pullRequestUrl && (
+                <a href={run.pullRequestUrl} rel="noreferrer" target="_blank">
+                  Open pull request ↗
+                </a>
               )}
             </div>
 
-            {run.receipt.dashboardUrl && (
-              <a
-                className="dashboard-link"
-                href={run.receipt.dashboardUrl}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Open session ↗
-              </a>
-            )}
-
-            <pre className="response-json">
-              {JSON.stringify(run.receipt.response, null, 2)}
-            </pre>
+            {run.error && <pre className="run-output output-error">{run.error}</pre>}
+            {run.result && <pre className="run-output">{run.result}</pre>}
           </div>
         )}
       </div>

@@ -1,34 +1,41 @@
-import type { ScenarioId } from "./scenarios";
-
-export type ExecutionMode =
-  | "checking"
-  | "live"
-  | "stand-in"
-  | "simulated"
-  | "unavailable";
-
-export interface ScenarioConfig {
-  execution: Exclude<ExecutionMode, "checking">;
-  detail: string;
-}
+export type RunStage =
+  | "queued"
+  | "preparing_image"
+  | "preparing_repository"
+  | "running_claude"
+  | "verifying_pull_request"
+  | "completed"
+  | "failed";
 
 export interface DemoConfig {
-  mode: "auto" | "mock" | "live";
-  scenarios: Record<ScenarioId, ScenarioConfig>;
+  execution: "live" | "unavailable";
+  missing: string[];
+  targetRepo: string;
 }
 
-export interface SessionReceipt {
-  execution: "live" | "stand-in" | "simulated";
+export interface RunProgress {
+  stage: RunStage;
+  label: string;
+  at: string;
+}
+
+export interface DemoRun {
+  id: string;
+  state: "running" | "succeeded" | "failed";
+  stage: RunStage;
+  startedAt: string;
+  updatedAt: string;
   durationMs: number;
-  session: {
+  sandbox?: {
     id: string;
-    status: string;
-    agentId: string;
-    runtime: string;
-    revision?: number;
+    dashboardUrl: string;
   };
-  dashboardUrl?: string;
-  response: Record<string, unknown>;
+  branch?: string;
+  claudeSessionId?: string;
+  pullRequestUrl?: string;
+  result?: string;
+  error?: string;
+  progress: RunProgress[];
 }
 
 interface ApiError {
@@ -37,28 +44,35 @@ interface ApiError {
   };
 }
 
-export async function loadDemoConfig(): Promise<DemoConfig> {
-  const response = await fetch("/api/config");
-  if (!response.ok) throw new Error("Could not read the local demo configuration.");
-  return response.json() as Promise<DemoConfig>;
-}
-
-export async function createDemoSession(args: {
-  scenario: ScenarioId;
-  input: string;
-  requestId: string;
-}): Promise<SessionReceipt> {
-  const response = await fetch("/api/run", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(args),
-  });
-
+async function readResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ApiError;
-    throw new Error(body.error?.message ?? `Run failed with HTTP ${response.status}.`);
+    throw new Error(
+      body.error?.message ?? `Request failed with HTTP ${response.status}.`,
+    );
   }
-
-  return response.json() as Promise<SessionReceipt>;
+  return response.json() as Promise<T>;
 }
 
+export async function loadDemoConfig(): Promise<DemoConfig> {
+  return readResponse<DemoConfig>(await fetch("/api/config"));
+}
+
+export async function startDemoRun(args: {
+  message: string;
+  requestId: string;
+}): Promise<DemoRun> {
+  return readResponse<DemoRun>(
+    await fetch("/api/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(args),
+    }),
+  );
+}
+
+export async function getDemoRun(runId: string): Promise<DemoRun> {
+  return readResponse<DemoRun>(
+    await fetch(`/api/runs/${encodeURIComponent(runId)}`),
+  );
+}

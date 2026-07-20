@@ -1,55 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { CodePanel } from "./components/CodePanel";
-import { RunPanel, type RunViewState } from "./components/RunPanel";
+import { RunPanel } from "./components/RunPanel";
 import {
-  createDemoSession,
+  getDemoRun,
   loadDemoConfig,
+  startDemoRun,
   type DemoConfig,
+  type DemoRun,
 } from "./lib/api";
-import { scenarios, type ScenarioId } from "./lib/scenarios";
+import { activeSlide, slides } from "./lib/demo";
 
-function mapScenarios<T>(factory: (id: ScenarioId) => T): Record<ScenarioId, T> {
-  return Object.fromEntries(
-    scenarios.map((scenario) => [scenario.id, factory(scenario.id)]),
-  ) as Record<ScenarioId, T>;
-}
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
-    (target instanceof HTMLElement && target.isContentEditable)
-  );
-}
-
-function initialScenarioIndex(): number {
-  const requested = new URLSearchParams(window.location.search).get("step");
-  const index = scenarios.findIndex((scenario) => scenario.id === requested);
-  return index >= 0 ? index : 0;
-}
+const POLL_INTERVAL_MS = 900;
 
 export default function App() {
-  const [activeIndex, setActiveIndex] = useState(initialScenarioIndex);
   const [config, setConfig] = useState<DemoConfig | null>(null);
   const [configError, setConfigError] = useState<string>();
-  const [inputs, setInputs] = useState(() =>
-    mapScenarios(
-      (id) => scenarios.find((scenario) => scenario.id === id)!.defaultInput,
-    ),
-  );
-  const [runs, setRuns] = useState<Record<ScenarioId, RunViewState>>(() =>
-    mapScenarios(() => ({ state: "idle" })),
-  );
-
-  const scenario = scenarios[activeIndex];
-  const run = runs[scenario.id];
-
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("step", scenario.id);
-    window.history.replaceState(null, "", url);
-  }, [scenario.id]);
+  const [message, setMessage] = useState(activeSlide.defaultMessage);
+  const [run, setRun] = useState<DemoRun | null>(null);
+  const [runError, setRunError] = useState<string>();
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     void loadDemoConfig()
@@ -66,86 +35,102 @@ export default function App() {
       });
   }, []);
 
-  const move = useCallback((direction: -1 | 1) => {
-    setActiveIndex((current) =>
-      Math.min(scenarios.length - 1, Math.max(0, current + direction)),
-    );
-  }, []);
+  useEffect(() => {
+    const runId = run?.state === "running" ? run.id : undefined;
+    if (!runId) return;
 
-  const runScenario = useCallback(async () => {
-    const current = scenarios[activeIndex];
-    const input = inputs[current.id].trim();
-    if (!input || runs[current.id].state === "running") return;
+    const refresh = () => {
+      void getDemoRun(runId)
+        .then((next) => {
+          setRun(next);
+          setRunError(undefined);
+        })
+        .catch((error: unknown) => {
+          setRunError(
+            error instanceof Error ? error.message : "Could not refresh the run.",
+          );
+        });
+    };
+    const timer = window.setInterval(refresh, POLL_INTERVAL_MS);
 
-    setRuns((previous) => ({
-      ...previous,
-      [current.id]: { state: "running" },
-    }));
+    return () => window.clearInterval(timer);
+  }, [run?.id, run?.state]);
+
+  const start = useCallback(async () => {
+    if (
+      config?.execution !== "live" ||
+      !message.trim() ||
+      starting ||
+      run?.state === "running"
+    ) {
+      return;
+    }
+
+    setStarting(true);
+    setRun(null);
+    setRunError(undefined);
 
     try {
-      const receipt = await createDemoSession({
-        scenario: current.id,
-        input,
-        requestId: crypto.randomUUID(),
-      });
-      setRuns((previous) => ({
-        ...previous,
-        [current.id]: { state: "success", receipt },
-      }));
+      setRun(
+        await startDemoRun({
+          message: message.trim(),
+          requestId: crypto.randomUUID(),
+        }),
+      );
     } catch (error) {
-      setRuns((previous) => ({
-        ...previous,
-        [current.id]: {
-          state: "error",
-          message:
-            error instanceof Error ? error.message : "The session run failed.",
-        },
-      }));
+      setRunError(
+        error instanceof Error ? error.message : "Could not start the run.",
+      );
+    } finally {
+      setStarting(false);
     }
-  }, [activeIndex, inputs, runs]);
+  }, [config?.execution, message, run?.state, starting]);
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if (isTypingTarget(event.target)) return;
-      if (event.key === "ArrowLeft") move(-1);
-      if (event.key === "ArrowRight") move(1);
-      if (event.key.toLowerCase() === "r") void runScenario();
+      if (
+        event.key.toLowerCase() !== "r" ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+      void start();
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [move, runScenario]);
+  }, [start]);
 
   return (
     <div className="app-shell">
-      <nav className="example-tabs" aria-label="Examples">
-        {scenarios.map((item, index) => (
+      <nav className="example-tabs" aria-label="Demo steps">
+        {slides.map((slide, index) => (
           <button
-            aria-current={index === activeIndex ? "page" : undefined}
-            className={index === activeIndex ? "active" : ""}
-            key={item.id}
-            onClick={() => setActiveIndex(index)}
+            aria-current="page"
+            className="active"
+            key={slide.id}
             type="button"
           >
-            {item.navLabel}
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            {slide.navLabel}
           </button>
         ))}
       </nav>
 
       <main className="workbench">
-        <CodePanel scenario={scenario} />
+        <CodePanel slide={activeSlide} />
         <RunPanel
-          config={config?.scenarios[scenario.id] ?? null}
+          config={config}
           configError={configError}
-          input={inputs[scenario.id]}
-          onInput={(value) =>
-            setInputs((previous) => ({
-              ...previous,
-              [scenario.id]: value,
-            }))
-          }
-          onRun={() => void runScenario()}
+          message={message}
+          onMessage={setMessage}
+          onRun={() => void start()}
           run={run}
-          scenario={scenario}
+          runError={runError}
+          starting={starting}
         />
       </main>
     </div>

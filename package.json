@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A code-first presentation prototype for OpenComputer Durable Agent Sessions",
+  "description": "A live demo contrasting naive sandbox agents with durable agent sessions",
   "engines": {
     "node": ">=20.0.0"
   },

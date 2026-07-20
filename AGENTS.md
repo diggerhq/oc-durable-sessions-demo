@@ -1,44 +1,48 @@
 # Durable Sessions demo studio
 
-This repository is a local, presentation-led prototype for explaining
-OpenComputer Durable Agent Sessions. It is intentionally both a runnable demo
-and a product-discovery artifact: shipped public calls may run live, while
-unshipped calls are mocked and recorded as gaps.
+This repository is a local, code-first demonstration of why an agent that
+merely runs in a sandbox is not yet a durable agent session. The first beat is a
+real naive implementation; later beats will expose its failure modes and replace
+them with OpenComputer Durable Agent Sessions.
 
 ## Read order
 
-1. `PRODUCT.md` — users, purpose, and the deliberately bare product register.
-2. `notes/original-prompt.md` — the brief, preserved verbatim.
-3. `notes/demo-script.md` — the intended video sequence and talk track.
-4. `notes/api-gap-ledger.md` — shipped, adapted, and missing contracts.
-5. `src/lib/scenarios.ts` — the examples the viewer actually sees.
-6. `server/index.ts` — the only place that holds an org key or calls the SDK.
+1. `PRODUCT.md` — audience, purpose, and design constraints.
+2. `notes/original-prompt.md` — the original broader demo brief, unchanged.
+3. `notes/durability-pivot-prompt.md` — the prompt that narrowed the story.
+4. `notes/demo-script.md` — the recording sequence.
+5. `notes/api-gap-ledger.md` — public contracts, observed gaps, and later work.
+6. `src/lib/demo.ts` — the code the viewer sees.
+7. `server/index.ts` — the live implementation.
 
 ## Invariants
 
-- Code is the visual subject. The on-screen product contains only example
-  switching, code, execution controls, and results. Narrative belongs in notes.
-- Never imply that a proposed API is shipped. The UI and gap ledger distinguish
-  `public API`, `proposed API + live stand-in`, and `simulated`.
-- The browser never receives `OPENCOMPUTER_API_KEY` or a session client token.
-- Live runs use an idempotency key. Responses shown on screen are deliberately
-  scrubbed to a safe receipt.
-- Mocks are deterministic product prototypes, not a second implementation of
-  the OpenComputer API.
-- Use OpenComputer vocabulary: agent, session, runtime, revision, skill. A
-  harness is Claude Code, Codex, Pi, or another program a runtime operates—not
-  a synonym for the runtime itself.
+- Code is the visual subject. The screen contains only step selection, code,
+  execution controls, progress, and real result links.
+- There are no mocks, stand-ins, or simulated receipts.
+- The first beat intentionally uses low-level sandbox primitives and preserves
+  their weaknesses. Do not quietly add managed-session behavior to make the
+  naive path look durable.
+- The browser never receives an OpenComputer, Anthropic, or GitHub credential.
+- The only writable GitHub target is the explicitly configured disposable
+  demo repository.
+- A successful run is not complete until the server verifies an actual open
+  pull-request URL for that run's branch.
+- The sandbox stays available long enough to open it during the demo. Do not
+  kill it on success.
 
 ## Contract authority
 
-Current public behavior comes from the default-branch TypeScript SDK and
-`opencomputer/docs/agent-sessions/*`. Product intent and neutral vocabulary come
-from `oc-bg-agents`, especially designs 002 and 014. If the prototype and
-shipped SDK disagree, record the mismatch in `notes/api-gap-ledger.md`.
+The public sandbox behavior comes from `opencomputer` default-branch
+`sdks/typescript/` and `docs/reference/typescript-sdk/*`. Durable-session
+product intent comes from `oc-bg-agents`. Record mismatches and missing behavior
+in `notes/api-gap-ledger.md`; do not invent an API in this repository.
 
 ## Safety
 
 - Never commit secrets. Use `.env.local`.
-- Do not make production API or dashboard changes from this repository.
-- Do not turn an aspirational example into a backend contract silently. Design
-  and implement that change in the owning repository first.
+- Never return secret values, raw SDK objects, or sandbox environment variables
+  to the browser.
+- Do not make production API or dashboard code changes from this repository.
+- Live tests may create a sandbox, a branch, and a PR only in the configured
+  disposable target. Report those artifacts so they can be cleaned up.
