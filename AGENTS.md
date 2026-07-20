@@ -7,6 +7,11 @@ messages; the third demonstrates the exposure of raw model and Git credentials.
 The fourth replaces that local orchestration with OpenComputer Durable Agent
 Sessions: one session create and one replaying event stream.
 
+For fresh-checkout setup, follow `README.md` from **Quick start** through
+**Ready check**. Never print `.env.local`, an archive password, or credential
+values. Encrypted environment bundles are transferred out of band and are
+explicitly ignored by Git; they must never be committed.
+
 ## Read order
 
 1. `PRODUCT.md` — audience, purpose, and design constraints.

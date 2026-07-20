@@ -8,6 +8,9 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "doctor": "node scripts/doctor.mjs",
+    "env:bundle": "bash scripts/create-env-bundle.sh",
+    "env:install": "bash scripts/install-env-bundle.sh",
     "dev": "concurrently -k -n api,web -c yellow,cyan \"tsx watch server/index.ts\" \"vite\"",
     "dev:web": "vite",
     "dev:api": "tsx watch server/index.ts",

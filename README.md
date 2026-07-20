@@ -10,36 +10,152 @@ Durable Agent Sessions create call and its replaying event stream.
 
 There is no mock mode.
 
-## Run it
+## Quick start
+
+Prerequisites:
+
+- Git;
+- Node.js 20 or newer and npm;
+- `unzip` when using the team environment bundle.
+
+Clone and install:
+
+```bash
+git clone https://github.com/diggerhq/oc-durable-sessions-demo.git
+cd oc-durable-sessions-demo
+npm install
+```
+
+Then choose one environment setup path.
+
+### A. Team bundle — fastest
+
+Get these through separate private channels:
+
+1. `oc-durable-sessions-demo.env.zip`;
+2. its password.
+
+The archive is intentionally not stored in Git. Install it from any local path:
+
+```bash
+npm run env:install -- ~/Downloads/oc-durable-sessions-demo.env.zip
+```
+
+`unzip` prompts for the password and the script writes `.env.local` with
+owner-only permissions. It refuses to overwrite an existing `.env.local`.
+Neither the password nor any credential belongs in a command, chat log, commit,
+or agent transcript.
+
+### B. Manual credentials
+
+Create the local file:
 
 ```bash
 cp .env.example .env.local
-npm install
+```
+
+Fill these four required values:
+
+| Variable | Where it comes from | Used by |
+| --- | --- | --- |
+| `OPENCOMPUTER_API_KEY` | OpenComputer organization API key | All four screens |
+| `ANTHROPIC_API_KEY` | Anthropic API key | Naive sandbox, Message delivery, Credential security |
+| `GITHUB_TOKEN` | GitHub token with push and pull-request access to the configured demo repository | Naive sandbox, Message delivery |
+| `DEMO_SESSION_AGENT_ID` | Deployed OpenComputer agent id (`agt_…`) | Durable session |
+
+The default writable target is `diggerhq/oc-agent-demo-target`. Change
+`DEMO_TARGET_REPO` and `DEMO_TARGET_BRANCH` in `.env.local` only if you have a
+different disposable target.
+
+If GitHub CLI is already logged into the right account, you can avoid storing
+its token and keep it only in the current terminal:
+
+```bash
+export GITHUB_TOKEN="$(gh auth token)"
+npm run doctor
+npm run dev
+# Run this after stopping the demo:
+unset GITHUB_TOKEN
+```
+
+The browser never receives the OpenComputer, Anthropic, or GitHub credentials.
+
+## Ready check
+
+Run these from the repository root:
+
+```bash
+npm run doctor
+npm test
 npm run dev
 ```
 
-Open [http://localhost:4173](http://localhost:4173).
+`doctor` checks required variable names and formats without printing their
+values. Then open [http://localhost:4173](http://localhost:4173). The Run panel
+should say **Live** on every screen.
 
-Configure three credentials and one deployed agent in `.env.local`:
+If port `4173` is occupied, Vite prints the replacement URL. If `doctor` reports
+a missing variable, install the bundle again after moving the existing
+`.env.local`, or fill that variable manually.
+
+## Hand this repository to an agent
+
+Give the agent the repository and the local path to the separately received
+archive. This prompt is sufficient:
+
+```text
+Read AGENTS.md and README.md first. Set up and verify the demo using the
+encrypted environment bundle at <absolute-path>. Never print .env.local,
+credential values, or the archive password. Run npm install, install the bundle
+with npm run env:install, run npm run doctor and npm test, then start npm run dev
+and report the local URL. Ask me to enter the bundle password when prompted.
+```
+
+The agent should not need product or infrastructure repository context.
+
+## Create a team bundle
+
+On a machine with a working `.env.local`:
+
+```bash
+npm run doctor
+npm run env:bundle
+```
+
+`zip` prompts twice for a new password and creates the ignored,
+owner-readable-only `oc-durable-sessions-demo.env.zip`. Share the archive out of
+band and send its password separately. Never add the archive to Git, even
+though it is encrypted.
+
+To use another output name:
+
+```bash
+npm run env:bundle -- local-name.env.zip
+```
+
+## Configuration details
+
+The complete local configuration is:
 
 ```bash
 OPENCOMPUTER_API_KEY=osb_...
 ANTHROPIC_API_KEY=sk-ant-...
 GITHUB_TOKEN=github-token-with-push-access
 DEMO_SESSION_AGENT_ID=agt_...
+
+DEMO_TARGET_REPO=diggerhq/oc-agent-demo-target
+DEMO_TARGET_BRANCH=main
+DEMO_SECURITY_MODEL=claude-haiku-4-5
+
+OPENCOMPUTER_SANDBOX_API_URL=https://app.opencomputer.dev
+OPENCOMPUTER_SESSIONS_API_URL=https://api.opencomputer.dev/v3
+OPENCOMPUTER_DASHBOARD_URL=https://app.opencomputer.dev
+DEMO_API_PORT=8789
 ```
 
-`GITHUB_TOKEN` needs permission to push branches and open pull requests in
-`diggerhq/oc-agent-demo-target`. If the local GitHub CLI is authenticated with
-the right account, run the app without copying that token into the file:
-
-```bash
-GITHUB_TOKEN="$(gh auth token)" npm run dev
-```
-
-The browser never receives the three credentials. `DEMO_SESSION_AGENT_ID` is
-not a credential; it names the deployed agent used by the fourth screen. That
-screen needs only the agent id and `OPENCOMPUTER_API_KEY`.
+The URLs, target branch, security model, and port already have working defaults.
+`DEMO_SESSION_AGENT_ID` is an identifier rather than a credential. Do not expose
+or commit the other three values.
 
 ## What Run does
 
