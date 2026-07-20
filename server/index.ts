@@ -9,9 +9,11 @@ import process from "node:process";
 import type {
   DemoConfig,
   DemoRun,
+  DemoRunKind,
   RunStage,
 } from "../src/lib/api";
 import { runNaiveSandbox } from "../src/lib/naive-sandbox-run";
+import { runSecuritySandbox } from "../src/lib/security-sandbox-run";
 
 function loadLocalEnv(file: string): void {
   try {
@@ -52,6 +54,8 @@ const targetRepo = normalizeRepo(
 const targetBranch = normalizeRef(
   process.env.DEMO_TARGET_BRANCH?.trim() || "main",
 );
+const securityModel =
+  process.env.DEMO_SECURITY_MODEL?.trim() || "claude-haiku-4-5";
 
 const runs = new Map<string, DemoRun>();
 const requestRuns = new Map<string, string>();
@@ -82,11 +86,11 @@ function normalizeRef(value: string): string {
   return value;
 }
 
-function missingConfig(): string[] {
+function missingConfig(kind: DemoRunKind = "agent"): string[] {
   return [
     !apiKey && "OPENCOMPUTER_API_KEY",
     !anthropicApiKey && "ANTHROPIC_API_KEY",
-    !githubToken && "GITHUB_TOKEN",
+    kind === "agent" && !githubToken && "GITHUB_TOKEN",
   ].filter((value): value is string => Boolean(value));
 }
 
@@ -174,8 +178,40 @@ function currentRun(run: DemoRun): DemoRun {
 
 async function executeRun(run: DemoRun, message: string): Promise<void> {
   try {
-    if (!apiKey || !anthropicApiKey || !githubToken) {
-      throw new Error(`Missing ${missingConfig().join(", ")}.`);
+    const missing = missingConfig(run.kind);
+    if (missing.length > 0 || !apiKey || !anthropicApiKey) {
+      throw new Error(`Missing ${missing.join(", ")}.`);
+    }
+
+    if (run.kind === "security") {
+      const result = await runSecuritySandbox(
+        {
+          apiKey,
+          apiUrl: sandboxApiUrl,
+          anthropicApiKey,
+          model: securityModel,
+          prompt: message,
+          runId: run.id,
+        },
+        (event) => {
+          if (event.sandboxId) {
+            run.sandbox = {
+              id: event.sandboxId,
+              dashboardUrl: `${dashboardBase}/sandboxes/${encodeURIComponent(event.sandboxId)}`,
+            };
+          }
+          transition(run, event.stage, event.label);
+        },
+      );
+      run.result = result.result;
+      run.captureUrl = result.captureUrl;
+      run.state = "succeeded";
+      transition(run, "completed", "Fictional credentials captured");
+      return;
+    }
+
+    if (!githubToken) {
+      throw new Error("Missing GITHUB_TOKEN.");
     }
 
     const result = await runNaiveSandbox(
@@ -234,8 +270,13 @@ async function executeRun(run: DemoRun, message: string): Promise<void> {
   }
 }
 
-function beginRun(message: string, requestId: string): DemoRun {
-  const existingId = requestRuns.get(requestId);
+function beginRun(
+  kind: DemoRunKind,
+  message: string,
+  requestId: string,
+): DemoRun {
+  const requestKey = `${kind}:${requestId}`;
+  const existingId = requestRuns.get(requestKey);
   const existing = existingId ? runs.get(existingId) : undefined;
   if (existing) return existing;
 
@@ -243,6 +284,7 @@ function beginRun(message: string, requestId: string): DemoRun {
   const now = new Date().toISOString();
   const run: DemoRun = {
     id,
+    kind,
     state: "running",
     stage: "queued",
     startedAt: now,
@@ -259,7 +301,7 @@ function beginRun(message: string, requestId: string): DemoRun {
   };
 
   runs.set(id, run);
-  requestRuns.set(requestId, id);
+  requestRuns.set(requestKey, id);
   void executeRun(run, message);
 
   while (runs.size > 25) {
@@ -281,15 +323,20 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "POST" && url.pathname === "/api/runs") {
     try {
-      const missing = missingConfig();
+      const body = (await readJson(request)) as Record<string, unknown>;
+      if (body.kind !== "agent" && body.kind !== "security") {
+        sendJson(response, 400, {
+          error: { message: "Run kind must be agent or security." },
+        });
+        return;
+      }
+      const missing = missingConfig(body.kind);
       if (missing.length > 0) {
         sendJson(response, 503, {
           error: { message: `Missing ${missing.join(", ")}.` },
         });
         return;
       }
-
-      const body = (await readJson(request)) as Record<string, unknown>;
       if (
         typeof body.message !== "string" ||
         !body.message.trim() ||
@@ -313,7 +360,7 @@ const server = createServer(async (request, response) => {
       sendJson(
         response,
         202,
-        currentRun(beginRun(body.message.trim(), body.requestId)),
+        currentRun(beginRun(body.kind, body.message.trim(), body.requestId)),
       );
     } catch (error) {
       sendJson(response, 500, {

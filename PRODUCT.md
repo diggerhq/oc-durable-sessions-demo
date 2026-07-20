@@ -12,9 +12,9 @@ OpenComputer team members running and recording local API demonstrations.
 
 Show a working agent that turns a Slack-style request into a pull request using
 only a sandbox, a checked-out repository, and Claude Code. Show the application
-code needed to extract and display the agent's live messages. Follow-on steps
-will use that naive implementation to make the need for durable agent sessions
-concrete.
+code needed to extract and display the agent's live messages. Show how raw
+model and Git credentials can leave the sandbox. These naive implementations
+make the need for durable agent sessions concrete.
 
 ## Brand Personality
 

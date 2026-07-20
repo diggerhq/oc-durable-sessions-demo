@@ -3,8 +3,9 @@
 This repository is a local, code-first demonstration of why an agent that
 merely runs in a sandbox is not yet a durable agent session. The first beat is a
 real naive implementation; the second exposes the work required to deliver its
-messages. Later beats will expose more failure modes and replace the local
-orchestration with OpenComputer Durable Agent Sessions.
+messages; the third demonstrates the exposure of raw model and Git credentials.
+Later beats will expose more failure modes and replace the local orchestration
+with OpenComputer Durable Agent Sessions.
 
 ## Read order
 
@@ -18,21 +19,24 @@ orchestration with OpenComputer Durable Agent Sessions.
    source toggle and imported by the server.
 8. `src/lib/stream-claude-messages.ts` — exact stdout relay shown by the second
    Full source toggle and used by the runner.
-9. `server/index.ts` — the local API and in-memory run projection.
+9. `src/lib/security-sandbox-run.ts` — the safe live credential-exposure runner
+   shown by the third Full source toggle.
+10. `server/index.ts` — the local API and in-memory run projection.
 
 ## Invariants
 
 - Code is the visual subject. The screen contains only step selection, code,
   execution controls, progress, and real result links.
 - There are no mocks, stand-ins, or simulated receipts.
-- The first two beats intentionally use low-level sandbox primitives and
+- The first three beats intentionally use low-level sandbox primitives and
   preserve their weaknesses. Do not quietly add managed-session behavior to
   make the naive path look durable.
 - The browser never receives an OpenComputer, Anthropic, or GitHub credential.
 - The only writable GitHub target is the explicitly configured disposable
   demo repository.
 - A successful run is not complete until the server verifies an actual open
-  pull-request URL for that run's branch.
+  pull-request URL for an agent run, or a real public receipt containing both
+  fake credentials for a security run.
 - Each Full source view raw-imports the same module the server executes. Do not
   duplicate or hand-maintain runnable source for the UI.
 - The sandbox stays available long enough to open it during the demo. Do not
@@ -50,6 +54,10 @@ in `notes/api-gap-ledger.md`; do not invent an API in this repository.
 - Never commit secrets. Use `.env.local`.
 - Never return secret values, raw SDK objects, or sandbox environment variables
   to the browser.
+- A security run may send only the hard-coded `not-real` credentials to its
+  public request bin. The real Anthropic key must remain in the local API and
+  the real GitHub token must not participate in that run.
 - Do not make production API or dashboard code changes from this repository.
-- Live tests may create a sandbox, a branch, and a PR only in the configured
-  disposable target. Report those artifacts so they can be cleaned up.
+- Live tests may create a sandbox, a branch and PR in the configured disposable
+  target, or a public request bin containing only the fake credentials. Report
+  those artifacts so they can be cleaned up.

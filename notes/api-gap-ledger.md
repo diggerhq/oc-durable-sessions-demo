@@ -17,6 +17,10 @@ durable session behavior that later beats will introduce.
 | Assemble and expose messages | Local in-memory run + browser polling | Application-owned, ephemeral code |
 | Inspect the sandbox | `/sandboxes/<sandbox-id>` dashboard route | Shipped dashboard |
 | Verify the PR | GitHub CLI against the disposable target | Live external API |
+| Create and inspect a public request bin | Webhook.site token and requests APIs | Live external API |
+| Choose the security action | Anthropic Messages API with one sandbox tool | Real model; real key stays local |
+| Pass security-demo credentials | `sandbox.exec.run({ env })` | Hard-coded fictional values only |
+| Verify credential egress | Match both fake values in the captured request | Live external receipt |
 
 There are no mocks, stand-ins, proposed calls, or required `sessions-api`
 changes in these beats.
@@ -94,6 +98,9 @@ application:
   and the GitHub token has access broader than one ephemeral branch. There is no
   per-run, repository-scoped capability or egress allowlist.
 - Claude Code runs with `--dangerously-skip-permissions` in a networked sandbox.
+- A process with those environment variables can send both values to an
+  arbitrary public endpoint; sandbox isolation does not narrow their provider-
+  or repository-level authority.
 - A successful sandbox is intentionally left alive for inspection and then
   relies on its idle timeout; the application has no durable lifecycle policy.
 
@@ -107,6 +114,10 @@ durable:
 
 - credentials stay server-side and known secret values are redacted from
   returned errors;
+- the credential-security run never puts a real provider or Git credential in
+  its sandbox; it verifies only two hard-coded `not-real` values;
+- the security sink is created per run, contains no private data, and is deleted
+  automatically if the run fails before capture;
 - the target repository and base branch are validated configuration;
 - each run gets a unique branch;
 - the browser receives a scrubbed run projection, never raw SDK objects;
@@ -116,7 +127,7 @@ durable:
 
 ## Next contract work
 
-None is required before testing Step 1. Design the later comparison around the
-existing Durable Agent Sessions API first. Add or change platform APIs only
-when a concrete later beat cannot be expressed honestly with the shipped
-contract.
+No `sessions-api` change is required for the first three beats. Design the later
+comparison around the existing Durable Agent Sessions API first. Add or change
+platform APIs only when a concrete later beat cannot be expressed honestly with
+the shipped contract.

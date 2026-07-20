@@ -3,12 +3,14 @@ import type { DemoConfig, DemoRun } from "../lib/api";
 interface RunPanelProps {
   config: DemoConfig | null;
   configError?: string;
+  inputLabel: string;
   message: string;
   run: DemoRun | null;
   runError?: string;
   outputView: "progress" | "messages";
   slideLabel: string;
   starting: boolean;
+  targetLabel: string;
   onMessage: (value: string) => void;
   onRun: () => void;
 }
@@ -21,12 +23,14 @@ function formatDuration(milliseconds: number): string {
 export function RunPanel({
   config,
   configError,
+  inputLabel,
   message,
   run,
   runError,
   outputView,
   slideLabel,
   starting,
+  targetLabel,
   onMessage,
   onRun,
 }: RunPanelProps) {
@@ -48,17 +52,17 @@ export function RunPanel({
       </header>
 
       <div className="task-editor">
-        <label htmlFor="slack-message">Slack message</label>
+        <label htmlFor="demo-input">{inputLabel}</label>
         <textarea
           disabled={running}
-          id="slack-message"
+          id="demo-input"
           value={message}
           onChange={(event) => onMessage(event.target.value)}
           rows={5}
           spellCheck={false}
         />
         <div className="task-actions">
-          <span>{config?.targetRepo ?? "—"}</span>
+          <span>{targetLabel || config?.targetRepo || "—"}</span>
           <button
             className="run-button"
             disabled={running || !configured || !message.trim()}
@@ -200,6 +204,11 @@ export function RunPanel({
               {run.pullRequestUrl && (
                 <a href={run.pullRequestUrl} rel="noreferrer" target="_blank">
                   Open pull request ↗
+                </a>
+              )}
+              {run.captureUrl && (
+                <a href={run.captureUrl} rel="noreferrer" target="_blank">
+                  Open captured request ↗
                 </a>
               )}
             </div>

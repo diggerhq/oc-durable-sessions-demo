@@ -7,6 +7,7 @@ import {
   startDemoRun,
   type DemoConfig,
   type DemoRun,
+  type DemoRunKind,
 } from "./lib/api";
 import { activeSlide, slides } from "./lib/demo";
 
@@ -16,11 +17,25 @@ export default function App() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [config, setConfig] = useState<DemoConfig | null>(null);
   const [configError, setConfigError] = useState<string>();
-  const [message, setMessage] = useState(activeSlide.defaultMessage);
-  const [run, setRun] = useState<DemoRun | null>(null);
-  const [runError, setRunError] = useState<string>();
-  const [starting, setStarting] = useState(false);
+  const [messages, setMessages] = useState<Record<DemoRunKind, string>>(() => ({
+    agent: activeSlide.defaultMessage,
+    security:
+      slides.find((candidate) => candidate.runKind === "security")
+        ?.defaultMessage ?? "",
+  }));
+  const [runs, setRuns] = useState<Partial<Record<DemoRunKind, DemoRun>>>({});
+  const [runErrors, setRunErrors] = useState<
+    Partial<Record<DemoRunKind, string>>
+  >({});
+  const [startingRuns, setStartingRuns] = useState<
+    Partial<Record<DemoRunKind, boolean>>
+  >({});
   const slide = slides[activeIndex] ?? activeSlide;
+  const runKind = slide.runKind;
+  const message = messages[runKind];
+  const run = runs[runKind] ?? null;
+  const runError = runErrors[runKind];
+  const starting = startingRuns[runKind] === true;
 
   useEffect(() => {
     void loadDemoConfig()
@@ -40,23 +55,31 @@ export default function App() {
   useEffect(() => {
     const runId = run?.state === "running" ? run.id : undefined;
     if (!runId) return;
+    const polledKind = runKind;
 
     const refresh = () => {
       void getDemoRun(runId)
         .then((next) => {
-          setRun(next);
-          setRunError(undefined);
+          setRuns((current) => ({ ...current, [polledKind]: next }));
+          setRunErrors((current) => ({
+            ...current,
+            [polledKind]: undefined,
+          }));
         })
         .catch((error: unknown) => {
-          setRunError(
-            error instanceof Error ? error.message : "Could not refresh the run.",
-          );
+          setRunErrors((current) => ({
+            ...current,
+            [polledKind]:
+              error instanceof Error
+                ? error.message
+                : "Could not refresh the run.",
+          }));
         });
     };
     const timer = window.setInterval(refresh, POLL_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
-  }, [run?.id, run?.state]);
+  }, [run?.id, run?.state, runKind]);
 
   const start = useCallback(async () => {
     if (
@@ -68,25 +91,32 @@ export default function App() {
       return;
     }
 
-    setStarting(true);
-    setRun(null);
-    setRunError(undefined);
+    const startedKind = runKind;
+    setStartingRuns((current) => ({ ...current, [startedKind]: true }));
+    setRuns((current) => {
+      const next = { ...current };
+      delete next[startedKind];
+      return next;
+    });
+    setRunErrors((current) => ({ ...current, [startedKind]: undefined }));
 
     try {
-      setRun(
-        await startDemoRun({
-          message: message.trim(),
-          requestId: crypto.randomUUID(),
-        }),
-      );
+      const next = await startDemoRun({
+        kind: startedKind,
+        message: message.trim(),
+        requestId: crypto.randomUUID(),
+      });
+      setRuns((current) => ({ ...current, [startedKind]: next }));
     } catch (error) {
-      setRunError(
-        error instanceof Error ? error.message : "Could not start the run.",
-      );
+      setRunErrors((current) => ({
+        ...current,
+        [startedKind]:
+          error instanceof Error ? error.message : "Could not start the run.",
+      }));
     } finally {
-      setStarting(false);
+      setStartingRuns((current) => ({ ...current, [startedKind]: false }));
     }
-  }, [config?.execution, message, run?.state, starting]);
+  }, [config?.execution, message, run?.state, runKind, starting]);
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -128,14 +158,18 @@ export default function App() {
         <RunPanel
           config={config}
           configError={configError}
+          inputLabel={slide.inputLabel}
           message={message}
-          onMessage={setMessage}
+          onMessage={(value) =>
+            setMessages((current) => ({ ...current, [runKind]: value }))
+          }
           onRun={() => void start()}
           run={run}
           runError={runError}
           outputView={slide.outputView}
           slideLabel={slide.navLabel}
           starting={starting}
+          targetLabel={slide.targetLabel ?? config?.targetRepo ?? ""}
         />
       </main>
     </div>

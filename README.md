@@ -3,7 +3,9 @@
 A local, code-first demo. The first screen creates a real OpenComputer sandbox,
 checks out a disposable repository, runs Claude Code on a Slack-style request,
 and opens a real pull request. The second shows the code required to get the
-agent's live messages out of that sandbox and into the app.
+agent's live messages out of that sandbox and into the app. The third sends
+fictional model and Git credentials from a real sandbox to a fresh public
+request bin.
 
 There is no mock mode.
 
@@ -52,12 +54,19 @@ The sandbox is intentionally left available so it can be opened in the
 OpenComputer dashboard during the recording. Close rehearsal PRs, delete their
 branches, and stop their sandboxes when they are no longer useful.
 
+The security run is deliberately safe: the real Anthropic key stays in the
+local API, the real GitHub token is never used, and only hard-coded `not-real`
+values enter the sandbox. Claude selects one real sandbox command, Webhook.site
+captures the outbound request, and the app verifies both fake values before the
+run succeeds. The generated request bin is public by design.
+
 ## Controls
 
-- switch between **Naive sandbox** and **Message delivery**;
+- switch between **Naive sandbox**, **Message delivery**, and **Credential
+  security**;
 - switch each screen between the spacious **Concept** view and the exact
   **Full source** imported by the local API;
-- edit the Slack message;
+- edit the Slack request or security prompt;
 - click **Run** or press `R` while focus is outside the editor;
 - open the sandbox as soon as it exists;
 - open the verified PR when the run completes.
@@ -68,6 +77,7 @@ branches, and stop their sandboxes when they are no longer useful.
 src/lib/demo.ts                    code shown on screen
 src/lib/naive-sandbox-run.ts       exact source shown and executed
 src/lib/stream-claude-messages.ts  exact stdout relay shown and executed
+src/lib/security-sandbox-run.ts    exact safe security runner shown and executed
 src/components/                    code and live-run panels
 server/index.ts                    local API and run projection
 notes/demo-script.md               recording sequence

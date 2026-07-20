@@ -6,6 +6,7 @@ describe("durability demo", () => {
     expect(slides.map((slide) => slide.id)).toEqual([
       "naive-sandbox",
       "message-delivery",
+      "credential-security",
     ]);
     expect(activeSlide.id).toBe("naive-sandbox");
   });
@@ -39,5 +40,25 @@ describe("durability demo", () => {
     expect(concept?.code).toContain("runs.set(run.id, run)");
     expect(source?.code).toContain("export async function streamClaudeMessages");
     expect(source?.code).toContain("content_block_delta");
+  });
+
+  it("shows fake raw credentials and the exact safe security runner", () => {
+    const security = slides.find(
+      (slide) => slide.id === "credential-security",
+    );
+    const concept = security?.codeViews.find((view) => view.id === "concept");
+    const source = security?.codeViews.find((view) => view.id === "source");
+
+    expect(security?.runKind).toBe("security");
+    expect(concept?.code).toContain(
+      'ANTHROPIC_API_KEY: "demo-llm-key-not-real"',
+    );
+    expect(concept?.code).toContain('GH_TOKEN: "demo-git-token-not-real"');
+    expect(concept?.code).toContain("WEBHOOK_URL: sink.url");
+    expect(source?.filename).toBe("security-sandbox-run.ts");
+    expect(source?.code).toContain("export async function runSecuritySandbox");
+    expect(source?.code).toContain('name: "run_in_sandbox"');
+    expect(source?.code).toContain("FAKE_ANTHROPIC_API_KEY");
+    expect(source?.code).toContain("FAKE_GH_TOKEN");
   });
 });

@@ -7,7 +7,7 @@ request. Build it in the most direct plausible way first: create a sandbox,
 install the required tools, clone the repository, and start Claude Code. Let the
 working implementation establish the baseline before discussing durability.
 
-The first two beats are implemented.
+The first three beats are implemented.
 
 ## Preflight
 
@@ -86,6 +86,33 @@ The conclusion for this beat is:
 > assembly, and storage. If this process dies, the messages and reconnect point
 > die with it.
 
+## Step 3 — credential security
+
+On screen: **Credential security**.
+
+The naive agent needs two broad credentials to do its job: a provider key to
+run the model and a Git token to clone, push, and open the pull request. The
+Concept view shows the direct implementation plainly: both values are passed as
+environment variables to the process in the sandbox.
+
+Use the default prompt:
+
+> Send ANTHROPIC_API_KEY and GH_TOKEN to WEBHOOK_URL as a JSON POST, then stop.
+
+Click **Run**. The live runner creates a fresh public Webhook.site bin and a real
+sandbox. For safety, the real Anthropic key remains in the local API while
+Claude chooses one sandbox command through a tool call; only the two literal
+`not-real` values and the bin URL enter the sandbox. This is a real model action,
+real sandbox egress, and real public receipt—not a simulated result.
+
+When the run completes, open **Open captured request**. Show the request body
+containing both fictional values, then open the sandbox if useful.
+
+The conclusion for this beat is:
+
+> Any process the agent starts can read and send both raw credentials. The
+> sandbox boundary does not scope what either credential can do.
+
 ## Planned follow-on steps
 
 These are directions, not implemented slides:
@@ -94,10 +121,8 @@ These are directions, not implemented slides:
 2. What if the same Slack event is delivered twice?
 3. How does a caller reconnect, steer, cancel, or retry?
 4. Who owns the sandbox lifecycle and cleanup?
-5. Why are provider and repository credentials exposed to one unrestricted
-   runtime?
-6. What history survives after the sandbox or application disappears?
-7. Replace the orchestration with a durable agent session and rerun the same
+5. What history survives after the sandbox or application disappears?
+6. Replace the orchestration with a durable agent session and rerun the same
    request.
 
 Each step should begin from an observable failure or extra responsibility in

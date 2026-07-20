@@ -1,11 +1,17 @@
 export type RunStage =
   | "queued"
+  | "preparing_sink"
   | "preparing_image"
   | "preparing_repository"
   | "running_claude"
+  | "running_security_agent"
+  | "executing_security_action"
   | "verifying_pull_request"
+  | "verifying_capture"
   | "completed"
   | "failed";
+
+export type DemoRunKind = "agent" | "security";
 
 export interface DemoConfig {
   execution: "live" | "unavailable";
@@ -29,6 +35,7 @@ export interface SandboxMessage {
 
 export interface DemoRun {
   id: string;
+  kind: DemoRunKind;
   state: "running" | "succeeded" | "failed";
   stage: RunStage;
   startedAt: string;
@@ -41,6 +48,7 @@ export interface DemoRun {
   branch?: string;
   claudeSessionId?: string;
   pullRequestUrl?: string;
+  captureUrl?: string;
   result?: string;
   error?: string;
   progress: RunProgress[];
@@ -68,6 +76,7 @@ export async function loadDemoConfig(): Promise<DemoConfig> {
 }
 
 export async function startDemoRun(args: {
+  kind: DemoRunKind;
   message: string;
   requestId: string;
 }): Promise<DemoRun> {
