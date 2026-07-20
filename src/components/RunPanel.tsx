@@ -7,7 +7,7 @@ interface RunPanelProps {
   message: string;
   run: DemoRun | null;
   runError?: string;
-  outputView: "progress" | "messages";
+  outputView: "progress" | "messages" | "events";
   slideLabel: string;
   starting: boolean;
   targetLabel: string;
@@ -37,6 +37,15 @@ export function RunPanel({
   const configured = config?.execution === "live" && !configError;
   const running = starting || run?.state === "running";
   const buttonLabel = running ? "Running…" : run ? "Run again" : "Run";
+  const resource = run?.session
+    ? {
+        label: "Session",
+        id: run.session.id,
+        status: run.session.status,
+      }
+    : run?.sandbox
+      ? { label: "Sandbox", id: run.sandbox.id, status: run.state }
+      : null;
 
   return (
     <section className="run-panel" aria-label={`Run ${slideLabel} example`}>
@@ -103,14 +112,14 @@ export function RunPanel({
 
         {run && (
           <div className="receipt-success">
-            {run.sandbox && (
+            {resource && (
               <div className="receipt-summary">
                 <div>
-                  <span>Sandbox</span>
-                  <strong>{run.sandbox.id}</strong>
+                  <span>{resource.label}</span>
+                  <strong>{resource.id}</strong>
                 </div>
                 <span className={`receipt-status status-${run.state}`}>
-                  {run.state}
+                  {resource.status}
                 </span>
               </div>
             )}
@@ -141,7 +150,7 @@ export function RunPanel({
                   );
                 })}
               </ol>
-            ) : (
+            ) : outputView === "messages" ? (
               <div className="message-stream">
                 {run.messages.length === 0 ? (
                   <div className="message-stream-empty">
@@ -177,6 +186,39 @@ export function RunPanel({
                   ))
                 )}
               </div>
+            ) : (
+              <div className="session-event-stream">
+                {run.events.length === 0 ? (
+                  <div className="message-stream-empty">
+                    {run.state === "running" && (
+                      <span className="button-spinner" aria-hidden="true" />
+                    )}
+                    {run.state === "running"
+                      ? "Waiting for durable events…"
+                      : "No session events received."}
+                  </div>
+                ) : (
+                  run.events.map((event) => (
+                    <article className="session-event" key={event.id}>
+                      <header>
+                        <span className="event-seq">#{event.seq}</span>
+                        <strong>{event.type}</strong>
+                        <span className={`event-level level-${event.level}`}>
+                          {event.level}
+                        </span>
+                        <time dateTime={event.at}>
+                          {new Date(event.at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </time>
+                      </header>
+                      {event.summary && <pre>{event.summary}</pre>}
+                    </article>
+                  ))
+                )}
+              </div>
             )}
 
             <div className="receipt-facts">
@@ -186,6 +228,17 @@ export function RunPanel({
                   {run.messages.length} message
                   {run.messages.length === 1 ? "" : "s"}
                 </span>
+              )}
+              {outputView === "events" && (
+                <>
+                  <span>
+                    {run.events.length} event
+                    {run.events.length === 1 ? "" : "s"}
+                  </span>
+                  {run.events.length > 0 && (
+                    <span>head #{run.events.at(-1)?.seq}</span>
+                  )}
+                </>
               )}
               {run.branch && <span>{run.branch}</span>}
               {run.claudeSessionId && <span>claude {run.claudeSessionId}</span>}
@@ -199,6 +252,15 @@ export function RunPanel({
                   target="_blank"
                 >
                   Open sandbox ↗
+                </a>
+              )}
+              {run.session && (
+                <a
+                  href={run.session.dashboardUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Open session ↗
                 </a>
               )}
               {run.pullRequestUrl && (

@@ -7,6 +7,7 @@ describe("durability demo", () => {
       "naive-sandbox",
       "message-delivery",
       "credential-security",
+      "durable-session",
     ]);
     expect(activeSlide.id).toBe("naive-sandbox");
   });
@@ -60,5 +61,21 @@ describe("durability demo", () => {
     expect(source?.code).toContain('name: "run_in_sandbox"');
     expect(source?.code).toContain("FAKE_ANTHROPIC_API_KEY");
     expect(source?.code).toContain("FAKE_GH_TOKEN");
+  });
+
+  it("ends with the exact durable session runner used by the server", () => {
+    const durable = slides.find((slide) => slide.id === "durable-session");
+    const concept = durable?.codeViews.find((view) => view.id === "concept");
+    const source = durable?.codeViews.find((view) => view.id === "source");
+
+    expect(durable?.runKind).toBe("session");
+    expect(durable?.outputView).toBe("events");
+    expect(concept?.code).toContain("oc.sessions.create");
+    expect(concept?.code).toContain("session.events");
+    expect(concept?.code).toContain('event.type === "turn.completed"');
+    expect(concept?.code).not.toContain("Sandbox.create");
+    expect(source?.filename).toBe("durable-session-run.ts");
+    expect(source?.code).toContain("export async function runDurableSession");
+    expect(source?.code).toContain('level: "progress"');
   });
 });

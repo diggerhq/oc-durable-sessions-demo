@@ -191,6 +191,22 @@ textarea:focus-visible,
   overflow: auto;
 }
 
+.code-scroll-spacious {
+  display: grid;
+  align-content: center;
+  padding-top: clamp(72px, 12vh, 150px);
+  padding-bottom: clamp(96px, 16vh, 190px);
+}
+
+.code-scroll-spacious .code-line.is-empty {
+  min-height: 1.38em;
+  line-height: 1.38;
+}
+
+.code-scroll-spacious .code-line.is-empty .line-number {
+  font-size: inherit;
+}
+
 .code-block {
   min-width: max-content;
   margin: 0;
@@ -509,6 +525,76 @@ textarea:focus-visible,
 
 .message-stream {
   border-bottom: 1px solid var(--rule);
+}
+
+.session-event-stream {
+  border-bottom: 1px solid var(--rule);
+}
+
+.session-event {
+  padding: 14px 20px 16px;
+}
+
+.session-event + .session-event {
+  border-top: 1px solid var(--rule);
+}
+
+.session-event header {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.event-seq,
+.session-event header strong,
+.event-level,
+.session-event time {
+  font-family: var(--mono);
+}
+
+.event-seq {
+  color: #96968f;
+  font-size: 10px;
+}
+
+.session-event header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 590;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-level {
+  padding: 2px 5px;
+  border: 1px solid #d7d7d1;
+  border-radius: 2px;
+  color: #777771;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.event-level.level-user {
+  border-color: #bad8c6;
+  color: var(--success);
+}
+
+.session-event time {
+  color: #92928b;
+  font-size: 10px;
+}
+
+.session-event pre {
+  margin: 8px 0 0 47px;
+  color: #3f3f3a;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .message-stream-empty {

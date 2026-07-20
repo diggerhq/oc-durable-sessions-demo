@@ -1,9 +1,9 @@
 # API and durability ledger
 
 This file records the boundary between the real sandbox demo beats and the
-durable session behavior that later beats will introduce.
+Durable Agent Sessions comparison that follows them.
 
-## Current beat
+## Current beats
 
 | Operation | Backing | Status |
 | --- | --- | --- |
@@ -21,9 +21,36 @@ durable session behavior that later beats will introduce.
 | Choose the security action | Anthropic Messages API with one sandbox tool | Real model; real key stays local |
 | Pass security-demo credentials | `sandbox.exec.run({ env })` | Hard-coded fictional values only |
 | Verify credential egress | Match both fake values in the captured request | Live external receipt |
+| Create a durable session | `oc.sessions.create({ agent, input, idempotencyKey })` | Public TypeScript SDK |
+| Stream its durable log | `session.events({ level: "progress" })` | Public TypeScript SDK; replay/reconnect by `seq` |
+| Detect terminal work | typed `turn.completed` event | Public event contract |
+| Fetch the final result | `session.result()` | Public TypeScript SDK |
+| Inspect the session | `/sessions/<session-id>` dashboard route | Shipped dashboard |
 
 There are no mocks, stand-ins, proposed calls, or required `sessions-api`
-changes in these beats.
+changes in these four beats.
+
+## Durable-session comparison boundary
+
+The fourth screen deliberately reuses the existing local run projection and
+browser polling so the visual shell stays constant. It does not make that map
+authoritative:
+
+- OpenComputer commits the input and events before the local UI sees them;
+- the SDK's event iterator reconnects from the last observed `seq` after a
+  dropped stream;
+- a create without a routing key is retry-safe through the supplied idempotency
+  key;
+- terminal state comes from `turn.completed`, never prose;
+- model, GitHub, runtime, and sandbox credentials stay out of this application;
+- the dashboard can open and steer the same session independently of this
+  process.
+
+The current local app does not persist its `run id → session id` display map.
+Restarting it therefore loses the convenient local card, but it does not lose
+the OpenComputer session or any event. A later crash/replay beat can persist the
+session id or use the browser-safe client token and `connectSession`; both
+contracts already ship, so this is demo work rather than an API gap.
 
 ## Observed platform papercuts
 
@@ -104,8 +131,8 @@ application:
 - A successful sandbox is intentionally left alive for inspection and then
   relies on its idle timeout; the application has no durable lifecycle policy.
 
-These are the source material for the next slides. Do not conceal them with
-local retry machinery before the durable-session comparison is designed.
+These are the source material for the comparison. Do not conceal them with
+local retry machinery in the naive screens.
 
 ## Current local adapter safeguards
 
@@ -127,7 +154,6 @@ durable:
 
 ## Next contract work
 
-No `sessions-api` change is required for the first three beats. Design the later
-comparison around the existing Durable Agent Sessions API first. Add or change
-platform APIs only when a concrete later beat cannot be expressed honestly with
-the shipped contract.
+No `sessions-api` change is required for these four beats. Add or change
+platform APIs only when a later observable comparison cannot be expressed
+honestly with the shipped contract.

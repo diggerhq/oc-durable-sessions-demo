@@ -1,5 +1,7 @@
 export type RunStage =
   | "queued"
+  | "creating_session"
+  | "streaming_session"
   | "preparing_sink"
   | "preparing_image"
   | "preparing_repository"
@@ -11,12 +13,17 @@ export type RunStage =
   | "completed"
   | "failed";
 
-export type DemoRunKind = "agent" | "security";
+export type DemoRunKind = "agent" | "security" | "session";
 
 export interface DemoConfig {
   execution: "live" | "unavailable";
   missing: string[];
   targetRepo: string;
+  durableSession: {
+    execution: "live" | "unavailable";
+    missing: string[];
+    agentId: string;
+  };
 }
 
 export interface RunProgress {
@@ -33,6 +40,15 @@ export interface SandboxMessage {
   updatedAt: string;
 }
 
+export interface DurableSessionEvent {
+  id: string;
+  seq: number;
+  type: string;
+  level: string;
+  at: string;
+  summary: string;
+}
+
 export interface DemoRun {
   id: string;
   kind: DemoRunKind;
@@ -45,6 +61,12 @@ export interface DemoRun {
     id: string;
     dashboardUrl: string;
   };
+  session?: {
+    id: string;
+    dashboardUrl: string;
+    status: string;
+    outcome?: string;
+  };
   branch?: string;
   claudeSessionId?: string;
   pullRequestUrl?: string;
@@ -53,6 +75,7 @@ export interface DemoRun {
   error?: string;
   progress: RunProgress[];
   messages: SandboxMessage[];
+  events: DurableSessionEvent[];
 }
 
 interface ApiError {

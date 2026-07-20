@@ -22,6 +22,9 @@ export default function App() {
     security:
       slides.find((candidate) => candidate.runKind === "security")
         ?.defaultMessage ?? "",
+    session:
+      slides.find((candidate) => candidate.runKind === "session")
+        ?.defaultMessage ?? "",
   }));
   const [runs, setRuns] = useState<Partial<Record<DemoRunKind, DemoRun>>>({});
   const [runErrors, setRunErrors] = useState<
@@ -36,6 +39,18 @@ export default function App() {
   const run = runs[runKind] ?? null;
   const runError = runErrors[runKind];
   const starting = startingRuns[runKind] === true;
+  const execution =
+    runKind === "session"
+      ? config?.durableSession.execution
+      : config?.execution;
+  const activeConfig =
+    config && runKind === "session"
+      ? {
+          ...config,
+          execution: config.durableSession.execution,
+          missing: config.durableSession.missing,
+        }
+      : config;
 
   useEffect(() => {
     void loadDemoConfig()
@@ -83,7 +98,7 @@ export default function App() {
 
   const start = useCallback(async () => {
     if (
-      config?.execution !== "live" ||
+      execution !== "live" ||
       !message.trim() ||
       starting ||
       run?.state === "running"
@@ -116,7 +131,7 @@ export default function App() {
     } finally {
       setStartingRuns((current) => ({ ...current, [startedKind]: false }));
     }
-  }, [config?.execution, message, run?.state, runKind, starting]);
+  }, [execution, message, run?.state, runKind, starting]);
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -156,7 +171,7 @@ export default function App() {
       <main className="workbench">
         <CodePanel slide={slide} />
         <RunPanel
-          config={config}
+          config={activeConfig}
           configError={configError}
           inputLabel={slide.inputLabel}
           message={message}
@@ -169,7 +184,12 @@ export default function App() {
           outputView={slide.outputView}
           slideLabel={slide.navLabel}
           starting={starting}
-          targetLabel={slide.targetLabel ?? config?.targetRepo ?? ""}
+          targetLabel={
+            slide.targetLabel ??
+            (runKind === "session"
+              ? `agent · ${config?.durableSession.agentId || "DEMO_SESSION_AGENT_ID"}`
+              : config?.targetRepo ?? "")
+          }
         />
       </main>
     </div>

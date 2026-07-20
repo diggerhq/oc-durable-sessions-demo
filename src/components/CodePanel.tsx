@@ -11,6 +11,7 @@ export function CodePanel({ slide }: CodePanelProps) {
   const view =
     slide.codeViews.find((candidate) => candidate.id === viewId) ??
     slide.codeViews[0];
+  const spacious = slide.id === "durable-session" && view.id === "concept";
 
   useEffect(() => setViewId("concept"), [slide.id]);
 
@@ -33,7 +34,11 @@ export function CodePanel({ slide }: CodePanelProps) {
         </div>
       </header>
 
-      <div className="code-scroll" key={view.id} tabIndex={0}>
+      <div
+        className={`code-scroll${spacious ? " code-scroll-spacious" : ""}`}
+        key={view.id}
+        tabIndex={0}
+      >
         <Highlight
           theme={themes.vsDark}
           code={view.code}

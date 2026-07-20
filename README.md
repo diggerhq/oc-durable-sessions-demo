@@ -5,7 +5,8 @@ checks out a disposable repository, runs Claude Code on a Slack-style request,
 and opens a real pull request. The second shows the code required to get the
 agent's live messages out of that sandbox and into the app. The third sends
 fictional model and Git credentials from a real sandbox to a fresh public
-request bin.
+request bin. The fourth replaces the application-owned orchestration with one
+Durable Agent Sessions create call and its replaying event stream.
 
 There is no mock mode.
 
@@ -19,12 +20,13 @@ npm run dev
 
 Open [http://localhost:4173](http://localhost:4173).
 
-Add three credentials to `.env.local`:
+Configure three credentials and one deployed agent in `.env.local`:
 
 ```bash
 OPENCOMPUTER_API_KEY=osb_...
 ANTHROPIC_API_KEY=sk-ant-...
 GITHUB_TOKEN=github-token-with-push-access
+DEMO_SESSION_AGENT_ID=agt_...
 ```
 
 `GITHUB_TOKEN` needs permission to push branches and open pull requests in
@@ -35,7 +37,9 @@ the right account, run the app without copying that token into the file:
 GITHUB_TOKEN="$(gh auth token)" npm run dev
 ```
 
-The browser never receives these values.
+The browser never receives the three credentials. `DEMO_SESSION_AGENT_ID` is
+not a credential; it names the deployed agent used by the fourth screen. That
+screen needs only the agent id and `OPENCOMPUTER_API_KEY`.
 
 ## What Run does
 
@@ -60,10 +64,18 @@ values enter the sandbox. Claude selects one real sandbox command, Webhook.site
 captures the outbound request, and the app verifies both fake values before the
 run succeeds. The generated request bin is public by design.
 
+The Durable session run sends the editor input to
+`oc.sessions.create({ agent, input, idempotencyKey })`, consumes
+`session.events({ level: "progress" })`, and stops on `turn.completed`. The
+right panel shows each persisted event's `seq`, type, level, and summary and
+links to the real dashboard session. The browser still polls the local screen
+projection so all four tabs share one UI mechanism; the authoritative history
+and reconnect cursor live in OpenComputer's session log.
+
 ## Controls
 
-- switch between **Naive sandbox**, **Message delivery**, and **Credential
-  security**;
+- switch between **Naive sandbox**, **Message delivery**, **Credential
+  security**, and **Durable session**;
 - switch each screen between the spacious **Concept** view and the exact
   **Full source** imported by the local API;
 - edit the Slack request or security prompt;
@@ -78,6 +90,7 @@ src/lib/demo.ts                    code shown on screen
 src/lib/naive-sandbox-run.ts       exact source shown and executed
 src/lib/stream-claude-messages.ts  exact stdout relay shown and executed
 src/lib/security-sandbox-run.ts    exact safe security runner shown and executed
+src/lib/durable-session-run.ts     exact durable session runner shown and executed
 src/components/                    code and live-run panels
 server/index.ts                    local API and run projection
 notes/demo-script.md               recording sequence

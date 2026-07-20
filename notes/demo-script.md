@@ -7,7 +7,7 @@ request. Build it in the most direct plausible way first: create a sandbox,
 install the required tools, clone the repository, and start Claude Code. Let the
 working implementation establish the baseline before discussing durability.
 
-The first three beats are implemented.
+The four beats are implemented.
 
 ## Preflight
 
@@ -15,7 +15,8 @@ Open these before recording:
 
 1. this app at `localhost:4173`;
 2. OpenComputer's Sandboxes page;
-3. `diggerhq/oc-agent-demo-target` on its pull-requests page.
+3. `diggerhq/oc-agent-demo-target` on its pull-requests page;
+4. OpenComputer's Sessions page and the Durable Agent Sessions docs.
 
 Confirm the app says **Live**. Close or distinguish rehearsal PRs. Use a fresh
 task or keep the default milliseconds request; each run gets a unique branch.
@@ -113,7 +114,37 @@ The conclusion for this beat is:
 > Any process the agent starts can read and send both raw credentials. The
 > sandbox boundary does not scope what either credential can do.
 
-## Planned follow-on steps
+## Step 4 — durable session
+
+On screen: **Durable session**.
+
+Keep the same repository request. The Concept view is the contrast:
+
+1. create a session with an agent id, input, and idempotency key;
+2. iterate its `progress` event stream;
+3. stop on the typed `turn.completed` event.
+
+Click **Run**. The real session id and dashboard link appear as soon as create
+returns. The right panel shows the stored event sequence—not provider stdout or
+locally inferred milestones. Open the session in another tab while it runs and
+show the same events arriving in OpenComputer.
+
+Use **Full source** only to establish that the working runner adds a bounded
+timeout, safe event summaries, and final-result lookup. It does not recreate a
+socket parser, provider event schema, sandbox lifecycle, credential handoff, or
+pull-request verifier.
+
+The presenter can now move through the Durable Agent Sessions documentation and
+integration surfaces while the run continues: session identity and replay,
+typed events, steering, Slack, repositories, GitHub publication, webhooks, and
+runtime choice all meet at the same session contract.
+
+The conclusion for this beat is:
+
+> My application creates the session and consumes its durable event log. The
+> platform owns the execution and integration machinery behind it.
+
+## Possible follow-on steps
 
 These are directions, not implemented slides:
 
@@ -122,8 +153,8 @@ These are directions, not implemented slides:
 3. How does a caller reconnect, steer, cancel, or retry?
 4. Who owns the sandbox lifecycle and cleanup?
 5. What history survives after the sandbox or application disappears?
-6. Replace the orchestration with a durable agent session and rerun the same
-   request.
+6. Stop and restart the local demo process, then reconnect to the same session
+   id to make replay visible rather than only explaining it.
 
 Each step should begin from an observable failure or extra responsibility in
 the naive code, not from a catalogue of platform features.

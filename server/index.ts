@@ -14,6 +14,7 @@ import type {
 } from "../src/lib/api";
 import { runNaiveSandbox } from "../src/lib/naive-sandbox-run";
 import { runSecuritySandbox } from "../src/lib/security-sandbox-run";
+import { runDurableSession } from "../src/lib/durable-session-run";
 
 function loadLocalEnv(file: string): void {
   try {
@@ -56,6 +57,11 @@ const targetBranch = normalizeRef(
 );
 const securityModel =
   process.env.DEMO_SECURITY_MODEL?.trim() || "claude-haiku-4-5";
+const sessionAgentId = process.env.DEMO_SESSION_AGENT_ID?.trim() || "";
+const sessionsApiUrl =
+  process.env.OPENCOMPUTER_SESSIONS_API_URL?.trim() ||
+  process.env.SESSIONS_API_URL?.trim() ||
+  "https://api.opencomputer.dev/v3";
 
 const runs = new Map<string, DemoRun>();
 const requestRuns = new Map<string, string>();
@@ -89,8 +95,9 @@ function normalizeRef(value: string): string {
 function missingConfig(kind: DemoRunKind = "agent"): string[] {
   return [
     !apiKey && "OPENCOMPUTER_API_KEY",
-    !anthropicApiKey && "ANTHROPIC_API_KEY",
+    kind !== "session" && !anthropicApiKey && "ANTHROPIC_API_KEY",
     kind === "agent" && !githubToken && "GITHUB_TOKEN",
+    kind === "session" && !sessionAgentId && "DEMO_SESSION_AGENT_ID",
   ].filter((value): value is string => Boolean(value));
 }
 
@@ -100,6 +107,12 @@ function configResponse(): DemoConfig {
     execution: missing.length === 0 ? "live" : "unavailable",
     missing,
     targetRepo,
+    durableSession: {
+      execution:
+        missingConfig("session").length === 0 ? "live" : "unavailable",
+      missing: missingConfig("session"),
+      agentId: sessionAgentId,
+    },
   };
 }
 
@@ -172,15 +185,76 @@ function currentRun(run: DemoRun): DemoRun {
         : run.durationMs,
     progress: run.progress.map((item) => ({ ...item })),
     messages: run.messages.map((message) => ({ ...message })),
+    events: run.events.map((event) => ({ ...event })),
     sandbox: run.sandbox ? { ...run.sandbox } : undefined,
+    session: run.session ? { ...run.session } : undefined,
   };
 }
 
-async function executeRun(run: DemoRun, message: string): Promise<void> {
+async function executeRun(
+  run: DemoRun,
+  message: string,
+  idempotencyKey: string,
+): Promise<void> {
   try {
     const missing = missingConfig(run.kind);
-    if (missing.length > 0 || !apiKey || !anthropicApiKey) {
+    if (missing.length > 0 || !apiKey) {
       throw new Error(`Missing ${missing.join(", ")}.`);
+    }
+
+    if (run.kind === "session") {
+      transition(run, "creating_session", "Creating durable session");
+      const result = await runDurableSession(
+        {
+          apiKey,
+          apiUrl: sessionsApiUrl,
+          agentId: sessionAgentId,
+          message,
+          requestId: idempotencyKey,
+        },
+        (session) => {
+          run.session = {
+            id: session.id,
+            status: session.status,
+            dashboardUrl: `${dashboardBase}/sessions/${encodeURIComponent(session.id)}`,
+          };
+          transition(run, "streaming_session", "Streaming durable events");
+        },
+        (event) => {
+          const existing = run.events.findIndex(
+            (candidate) => candidate.id === event.id,
+          );
+          if (existing >= 0) run.events[existing] = event;
+          else run.events.push(event);
+          run.events.sort((left, right) => left.seq - right.seq);
+          if (run.events.length > 100) run.events.shift();
+          run.updatedAt = new Date().toISOString();
+        },
+      );
+      if (run.session) {
+        run.session.status = result.status;
+        run.session.outcome = result.outcome;
+      }
+      run.result = result.result ? safeText(result.result, 6_000) : undefined;
+      const failedOutcome = new Set([
+        "error",
+        "canceled",
+        "budget_exceeded",
+        "deadline_exceeded",
+        "max_turns",
+      ]).has(result.outcome);
+      run.state = failedOutcome ? "failed" : "succeeded";
+      if (failedOutcome) run.error = `Turn completed: ${result.outcome}.`;
+      transition(
+        run,
+        failedOutcome ? "failed" : "completed",
+        `Turn ${result.outcome}`,
+      );
+      return;
+    }
+
+    if (!anthropicApiKey) {
+      throw new Error("Missing ANTHROPIC_API_KEY.");
     }
 
     if (run.kind === "security") {
@@ -298,11 +372,12 @@ function beginRun(
       },
     ],
     messages: [],
+    events: [],
   };
 
   runs.set(id, run);
   requestRuns.set(requestKey, id);
-  void executeRun(run, message);
+  void executeRun(run, message, requestId);
 
   while (runs.size > 25) {
     const oldest = runs.keys().next().value as string | undefined;
@@ -324,9 +399,13 @@ const server = createServer(async (request, response) => {
   if (request.method === "POST" && url.pathname === "/api/runs") {
     try {
       const body = (await readJson(request)) as Record<string, unknown>;
-      if (body.kind !== "agent" && body.kind !== "security") {
+      if (
+        body.kind !== "agent" &&
+        body.kind !== "security" &&
+        body.kind !== "session"
+      ) {
         sendJson(response, 400, {
-          error: { message: "Run kind must be agent or security." },
+          error: { message: "Run kind must be agent, security, or session." },
         });
         return;
       }
@@ -343,7 +422,7 @@ const server = createServer(async (request, response) => {
         body.message.length > 2_000
       ) {
         sendJson(response, 400, {
-          error: { message: "Slack message must contain 1–2,000 characters." },
+          error: { message: "Input must contain 1–2,000 characters." },
         });
         return;
       }

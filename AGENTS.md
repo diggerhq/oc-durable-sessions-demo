@@ -4,8 +4,8 @@ This repository is a local, code-first demonstration of why an agent that
 merely runs in a sandbox is not yet a durable agent session. The first beat is a
 real naive implementation; the second exposes the work required to deliver its
 messages; the third demonstrates the exposure of raw model and Git credentials.
-Later beats will expose more failure modes and replace the local orchestration
-with OpenComputer Durable Agent Sessions.
+The fourth replaces that local orchestration with OpenComputer Durable Agent
+Sessions: one session create and one replaying event stream.
 
 ## Read order
 
@@ -21,7 +21,9 @@ with OpenComputer Durable Agent Sessions.
    Full source toggle and used by the runner.
 9. `src/lib/security-sandbox-run.ts` — the safe live credential-exposure runner
    shown by the third Full source toggle.
-10. `server/index.ts` — the local API and in-memory run projection.
+10. `src/lib/durable-session-run.ts` — the exact Durable Agent Sessions runner
+    shown by the fourth Full source toggle and imported by the server.
+11. `server/index.ts` — the local API and in-memory screen projection.
 
 ## Invariants
 
@@ -31,12 +33,14 @@ with OpenComputer Durable Agent Sessions.
 - The first three beats intentionally use low-level sandbox primitives and
   preserve their weaknesses. Do not quietly add managed-session behavior to
   make the naive path look durable.
-- The browser never receives an OpenComputer, Anthropic, or GitHub credential.
+- The browser never receives an OpenComputer org key, Anthropic key, or GitHub
+  credential.
 - The only writable GitHub target is the explicitly configured disposable
   demo repository.
 - A successful run is not complete until the server verifies an actual open
   pull-request URL for an agent run, or a real public receipt containing both
-  fake credentials for a security run.
+  fake credentials for a security run, or a durable `turn.completed` event for
+  a session run.
 - Each Full source view raw-imports the same module the server executes. Do not
   duplicate or hand-maintain runnable source for the UI.
 - The sandbox stays available long enough to open it during the demo. Do not
@@ -59,5 +63,5 @@ in `notes/api-gap-ledger.md`; do not invent an API in this repository.
   the real GitHub token must not participate in that run.
 - Do not make production API or dashboard code changes from this repository.
 - Live tests may create a sandbox, a branch and PR in the configured disposable
-  target, or a public request bin containing only the fake credentials. Report
-  those artifacts so they can be cleaned up.
+  target, a durable session, or a public request bin containing only the fake
+  credentials. Report those artifacts so they can be cleaned up.

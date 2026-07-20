@@ -14,7 +14,9 @@ Show a working agent that turns a Slack-style request into a pull request using
 only a sandbox, a checked-out repository, and Claude Code. Show the application
 code needed to extract and display the agent's live messages. Show how raw
 model and Git credentials can leave the sandbox. These naive implementations
-make the need for durable agent sessions concrete.
+make the need for durable agent sessions concrete. Finish by running the same
+kind of task through the Durable Agent Sessions API and its ordered, replayable
+event stream.
 
 ## Brand Personality
 

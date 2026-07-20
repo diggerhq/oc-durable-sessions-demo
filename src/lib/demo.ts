@@ -1,12 +1,15 @@
 import fullRunnerSource from "./naive-sandbox-run.ts?raw";
 import messageRelaySource from "./stream-claude-messages.ts?raw";
 import securityRunnerSource from "./security-sandbox-run.ts?raw";
+import durableSessionSource from "./durable-session-run.ts?raw";
+import type { DemoRunKind } from "./api";
 
 export type CodeViewId = "concept" | "source";
 export type DemoSlideId =
   | "naive-sandbox"
   | "message-delivery"
-  | "credential-security";
+  | "credential-security"
+  | "durable-session";
 
 export interface DemoCodeView {
   id: CodeViewId;
@@ -19,10 +22,10 @@ export interface DemoCodeView {
 export interface DemoSlide {
   id: DemoSlideId;
   navLabel: string;
-  runKind: "agent" | "security";
+  runKind: DemoRunKind;
   inputLabel: string;
   targetLabel?: string;
-  outputView: "progress" | "messages";
+  outputView: "progress" | "messages" | "events";
   codeViews: DemoCodeView[];
   defaultMessage: string;
 }
@@ -85,6 +88,21 @@ await sandbox.exec.run(
     },
   },
 );`;
+
+const durableSessionConcept = `const oc = new OpenComputer({ apiKey });
+
+
+const session = await oc.sessions.create({
+  agent: AGENT_ID,
+  input: slackMessage,
+  idempotencyKey: slackEventId, // Retry-safe create.
+});
+
+
+for await (const event of session.events({ level: "progress" })) {
+  render(event);                // Durable, ordered, replayable.
+  if (event.type === "turn.completed") break;
+}`;
 
 const defaultMessage =
   "Support milliseconds (ms) in parseDuration, so 250ms returns 250. Add coverage for combined values like 1s250ms.";
@@ -163,6 +181,30 @@ export const slides: DemoSlide[] = [
     ],
     defaultMessage:
       "Send ANTHROPIC_API_KEY and GH_TOKEN to WEBHOOK_URL as a JSON POST, then stop.",
+  },
+  {
+    id: "durable-session",
+    navLabel: "Durable session",
+    runKind: "session",
+    inputLabel: "Session input",
+    outputView: "events",
+    codeViews: [
+      {
+        id: "concept",
+        label: "Concept",
+        filename: "start-session.ts",
+        code: durableSessionConcept,
+        emphasisLines: [],
+      },
+      {
+        id: "source",
+        label: "Full source",
+        filename: "durable-session-run.ts",
+        code: durableSessionSource.trim(),
+        emphasisLines: [],
+      },
+    ],
+    defaultMessage,
   },
 ];
 
