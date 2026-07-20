@@ -50,7 +50,8 @@ screen needs only the agent id and `OPENCOMPUTER_API_KEY`.
    `diggerhq/oc-agent-demo-target` onto a unique branch.
 4. Starts Claude Code with streaming JSON output and both raw tokens.
 5. Receives stdout bytes over the sandbox exec WebSocket, frames JSON Lines,
-   and assembles Claude text deltas into an in-memory message list.
+   and assembles Claude text deltas, tool calls, and tool results into an
+   in-memory activity list.
 6. Lets the browser poll that local message list while Claude works.
 7. Verifies the PR through GitHub CLI and exposes links to the sandbox and PR.
 

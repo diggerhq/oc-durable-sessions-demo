@@ -77,8 +77,11 @@ export interface ClaudeStreamConfig {
 
 export interface ClaudeMessageUpdate {
   id: string;
+  kind: "assistant" | "tool";
+  name?: string;
   text: string;
   done: boolean;
+  isError?: boolean;
 }
 
 export interface ClaudeStreamResult {
@@ -99,10 +102,18 @@ interface TextBlock {
   text: string;
 }
 
+interface ToolMessage {
+  id: string;
+  name: string;
+  input: string;
+  done: boolean;
+}
+
 export class ClaudeJsonLineRelay {
   private readonly decoder = new TextDecoder();
   private readonly blocks = new Map<number, TextBlock>();
-  private readonly emittedMessageIds = new Set<string>();
+  private readonly emittedAssistantIds = new Set<string>();
+  private readonly tools = new Map<string, ToolMessage>();
   private buffer = "";
   private messageNumber = 0;
   private result?: string;
@@ -125,8 +136,14 @@ export class ClaudeJsonLineRelay {
       this.buffer += this.decoder.decode();
       this.drain(true);
       this.completeAll();
-      if (this.emittedMessageIds.size === 0 && this.result) {
-        this.emit({ id: "message-1", text: this.result, done: true });
+      this.completeTools();
+      if (this.emittedAssistantIds.size === 0 && this.result) {
+        this.emit({
+          id: "message-1",
+          kind: "assistant",
+          text: this.result,
+          done: true,
+        });
       }
     }
     return {
@@ -165,18 +182,27 @@ export class ClaudeJsonLineRelay {
 
   private handle(value: unknown): void {
     const message = asRecord(value);
-    const type = asString(message?.type);
-    this.sessionId = asString(message?.session_id) ?? this.sessionId;
+    if (!message) return;
+    const type = asString(message.type);
+    this.sessionId = asString(message.session_id) ?? this.sessionId;
 
     if (type === "result") {
-      this.result = asString(message?.result) ?? this.result;
-      this.isError = message?.is_error === true;
+      this.result = asString(message.result) ?? this.result;
+      this.isError = message.is_error === true;
       this.completeAll();
+      return;
+    }
+    if (type === "assistant") {
+      this.captureToolUses(message);
+      return;
+    }
+    if (type === "user") {
+      this.captureToolResults(message);
       return;
     }
     if (type !== "stream_event") return;
 
-    const event = asRecord(message?.event);
+    const event = asRecord(message.event);
     const eventType = asString(event?.type);
     const index = asNumber(event?.index);
 
@@ -190,7 +216,7 @@ export class ClaudeJsonLineRelay {
       const block = this.createBlock();
       block.text = asString(content.text) ?? "";
       this.blocks.set(index, block);
-      if (block.text) this.emit({ ...block, done: false });
+      if (block.text) this.emitAssistant(block, false);
       return;
     }
     if (eventType === "content_block_delta" && index !== undefined) {
@@ -200,7 +226,7 @@ export class ClaudeJsonLineRelay {
       if (!text) return;
       const block = this.blocks.get(index) ?? this.createAndStoreBlock(index);
       block.text += text;
-      this.emit({ ...block, done: false });
+      this.emitAssistant(block, false);
       return;
     }
     if (eventType === "content_block_stop" && index !== undefined) {
@@ -208,6 +234,61 @@ export class ClaudeJsonLineRelay {
       return;
     }
     if (eventType === "message_stop") this.completeAll();
+  }
+
+  private captureToolUses(message: Record<string, unknown>): void {
+    for (const content of messageContent(message)) {
+      if (content.type !== "tool_use") continue;
+      const toolUseId = asString(content.id);
+      const name = asString(content.name);
+      if (!toolUseId || !name || this.tools.has(toolUseId)) continue;
+      this.emitToolUse(toolUseId, name, jsonText(content.input));
+    }
+  }
+
+  private captureToolResults(message: Record<string, unknown>): void {
+    for (const content of messageContent(message)) {
+      if (content.type !== "tool_result") continue;
+      const toolUseId = asString(content.tool_use_id);
+      if (!toolUseId) continue;
+      const tool = this.tools.get(toolUseId);
+      const output = boundedText(contentText(content.content) || "No output");
+      const input = tool?.input || "{}";
+      const update: ToolMessage = {
+        id: tool?.id ?? `tool-${toolUseId}`,
+        name: tool?.name ?? "Tool",
+        input,
+        done: true,
+      };
+      this.tools.set(toolUseId, update);
+      this.emit({
+        id: update.id,
+        kind: "tool",
+        name: update.name,
+        text: `Input\n${input}\n\nOutput\n${output}`,
+        done: true,
+        isError: content.is_error === true,
+      });
+    }
+  }
+
+  private emitToolUse(toolUseId: string, name: string, input: string): void {
+    if (this.tools.has(toolUseId)) return;
+    const normalized = boundedText(input || "{}");
+    const tool = {
+      id: `tool-${toolUseId}`,
+      name,
+      input: normalized,
+      done: false,
+    };
+    this.tools.set(toolUseId, tool);
+    this.emit({
+      id: tool.id,
+      kind: "tool",
+      name,
+      text: `Input\n${normalized}`,
+      done: false,
+    });
   }
 
   private createBlock(): TextBlock {
@@ -224,7 +305,7 @@ export class ClaudeJsonLineRelay {
   private complete(index: number): void {
     const block = this.blocks.get(index);
     if (!block) return;
-    if (block.text) this.emit({ ...block, done: true });
+    if (block.text) this.emitAssistant(block, true);
     this.blocks.delete(index);
   }
 
@@ -232,9 +313,28 @@ export class ClaudeJsonLineRelay {
     for (const index of [...this.blocks.keys()]) this.complete(index);
   }
 
+  private completeTools(): void {
+    for (const [toolUseId, tool] of this.tools) {
+      if (tool.done) continue;
+      tool.done = true;
+      this.tools.set(toolUseId, tool);
+      this.emit({
+        id: tool.id,
+        kind: "tool",
+        name: tool.name,
+        text: `Input\n${tool.input}`,
+        done: true,
+      });
+    }
+  }
+
+  private emitAssistant(block: TextBlock, done: boolean): void {
+    this.emit({ ...block, kind: "assistant", done });
+  }
+
   private emit(update: ClaudeMessageUpdate): void {
     if (!update.text) return;
-    this.emittedMessageIds.add(update.id);
+    if (update.kind === "assistant") this.emittedAssistantIds.add(update.id);
     this.onMessage(update);
   }
 }
@@ -255,4 +355,41 @@ function asString(value: unknown): string | undefined {
 
 function asNumber(value: unknown): number | undefined {
   return typeof value === "number" ? value : undefined;
+}
+
+function messageContent(
+  message: Record<string, unknown>,
+): Record<string, unknown>[] {
+  const body = asRecord(message.message);
+  return Array.isArray(body?.content)
+    ? body.content.map(asRecord).filter((value) => value !== undefined)
+    : [];
+}
+
+function jsonText(value: unknown): string {
+  if (value === undefined) return "";
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function contentText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return jsonText(value);
+  return value
+    .map((item) => {
+      const block = asRecord(item);
+      return asString(block?.text) ?? jsonText(item);
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function boundedText(value: string, maxLength = 2_000): string {
+  const text = value.trim();
+  if (text.length <= maxLength) return text;
+  const half = Math.floor((maxLength - 21) / 2);
+  return `${text.slice(0, half)}\n… output truncated …\n${text.slice(-half)}`;
 }

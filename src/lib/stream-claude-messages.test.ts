@@ -57,6 +57,7 @@ describe("ClaudeJsonLineRelay", () => {
 
     expect(updates.at(-1)).toEqual({
       id: "message-1",
+      kind: "assistant",
       text: "Hello 🌍",
       done: true,
     });
@@ -64,6 +65,98 @@ describe("ClaudeJsonLineRelay", () => {
       result: "Hello 🌍",
       sessionId: "claude-session-1",
       isError: false,
+    });
+  });
+
+  it("emits real tool activity while Claude works", () => {
+    const updates: ClaudeMessageUpdate[] = [];
+    const relay = new ClaudeJsonLineRelay((update) => updates.push(update));
+    const payload = [
+      {
+        type: "stream_event",
+        event: {
+          type: "content_block_start",
+          index: 0,
+          content_block: {
+            type: "tool_use",
+            id: "toolu_test",
+            name: "Bash",
+            input: {},
+          },
+        },
+      },
+      {
+        type: "assistant",
+        message: {
+          role: "assistant",
+          content: [
+            {
+              type: "tool_use",
+              id: "toolu_test",
+              name: "Bash",
+              input: { command: "npm test" },
+            },
+          ],
+        },
+      },
+      {
+        type: "stream_event",
+        event: {
+          type: "content_block_delta",
+          index: 0,
+          delta: {
+            type: "input_json_delta",
+            partial_json: '{"command":"npm test"}',
+          },
+        },
+      },
+      {
+        type: "stream_event",
+        event: { type: "content_block_stop", index: 0 },
+      },
+      {
+        type: "user",
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_test",
+              content: "2 tests passed",
+            },
+          ],
+        },
+      },
+      {
+        type: "result",
+        session_id: "claude-session-2",
+        result: "Done",
+        is_error: false,
+      },
+    ]
+      .map((value) => JSON.stringify(value))
+      .join("\n");
+
+    relay.write(new TextEncoder().encode(payload));
+    relay.end();
+
+    expect(updates[0]).toMatchObject({
+      id: "tool-toolu_test",
+      kind: "tool",
+      name: "Bash",
+      done: false,
+    });
+    expect(updates[0]?.text).toContain('"command": "npm test"');
+    expect(updates[1]).toMatchObject({
+      id: "tool-toolu_test",
+      kind: "tool",
+      name: "Bash",
+      done: true,
+    });
+    expect(updates[1]?.text).toContain("2 tests passed");
+    expect(updates.at(-1)).toMatchObject({
+      kind: "assistant",
+      text: "Done",
     });
   });
 

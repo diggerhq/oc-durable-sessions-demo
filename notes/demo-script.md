@@ -70,7 +70,8 @@ the agent. To display the agent's actual output, the app now has to:
 2. keep the exec WebSocket connected and receive arbitrary stdout byte chunks;
 3. decode UTF-8, frame newline-delimited JSON, and parse Claude's provider-
    specific stream events;
-4. assemble text deltas into messages in the local run record;
+4. assemble text deltas and correlate tool calls with their results in the
+   local run record;
 5. let the browser poll that record and redraw the messages.
 
 The **Concept** view is the talk track. **Full source** is the exact relay used
@@ -79,7 +80,8 @@ and the Node WebSocket compatibility shim.
 
 For a live capture, select this screen before clicking **Run**, or switch to it
 while Claude is working. The two screens read the same run. The right panel now
-shows Claude's real messages instead of the externally observed milestones.
+shows Claude's real messages and tool activity instead of the externally
+observed milestones.
 
 The conclusion for this beat is:
 

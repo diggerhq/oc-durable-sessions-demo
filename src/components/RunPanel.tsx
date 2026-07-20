@@ -163,9 +163,18 @@ export function RunPanel({
                   </div>
                 ) : (
                   run.messages.map((item) => (
-                    <article className="sandbox-message" key={item.id}>
+                    <article
+                      className={`sandbox-message message-${item.kind}${
+                        item.isError ? " is-error" : ""
+                      }`}
+                      key={item.id}
+                    >
                       <header>
-                        <strong>Agent</strong>
+                        <strong>
+                          {item.kind === "tool"
+                            ? `${item.isError ? "Tool error" : "Tool"} · ${item.name ?? "unknown"}`
+                            : "Agent"}
+                        </strong>
                         <time dateTime={item.at}>
                           {new Date(item.at).toLocaleTimeString([], {
                             hour: "2-digit",

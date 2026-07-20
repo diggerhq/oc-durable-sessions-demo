@@ -34,8 +34,11 @@ export interface RunProgress {
 
 export interface SandboxMessage {
   id: string;
+  kind: "assistant" | "tool";
+  name?: string;
   text: string;
   state: "streaming" | "complete";
+  isError?: boolean;
   at: string;
   updatedAt: string;
 }

@@ -644,6 +644,26 @@ textarea:focus-visible,
   white-space: pre-wrap;
 }
 
+.sandbox-message.message-tool {
+  background: #f8f8f5;
+}
+
+.sandbox-message.message-tool header strong,
+.sandbox-message.message-tool pre {
+  font-family: var(--mono);
+}
+
+.sandbox-message.message-tool pre {
+  color: #62625c;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.sandbox-message.message-tool.is-error header strong,
+.sandbox-message.message-tool.is-error pre {
+  color: var(--danger);
+}
+
 .message-cursor {
   color: var(--accent);
   animation: cursor-blink 900ms steps(1, end) infinite;

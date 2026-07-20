@@ -14,7 +14,7 @@ Durable Agent Sessions comparison that follows them.
 | Pass raw credentials to checkout and Claude | `sandbox.exec.run/start({ env })` | Public TypeScript SDK |
 | Start Claude and receive stdout bytes | `sandbox.exec.start({ onStdout })` | Public TypeScript SDK |
 | Frame and parse Claude stream events | Local `ClaudeJsonLineRelay` | Application-owned, provider-specific code |
-| Assemble and expose messages | Local in-memory run + browser polling | Application-owned, ephemeral code |
+| Assemble and expose messages + tool activity | Local in-memory run + browser polling | Application-owned, ephemeral code |
 | Inspect the sandbox | `/sandboxes/<sandbox-id>` dashboard route | Shipped dashboard |
 | Verify the PR | GitHub CLI against the disposable target | Live external API |
 | Create and inspect a public request bin | Webhook.site token and requests APIs | Live external API |

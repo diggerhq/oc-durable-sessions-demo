@@ -315,14 +315,20 @@ async function executeRun(
           (message) => message.id === update.id,
         );
         if (existing) {
+          existing.kind = update.kind;
+          existing.name = update.name;
           existing.text = safeText(update.text, 6_000);
           existing.state = update.done ? "complete" : "streaming";
+          existing.isError = update.isError;
           existing.updatedAt = now;
         } else {
           run.messages.push({
             id: update.id,
+            kind: update.kind,
+            name: update.name,
             text: safeText(update.text, 6_000),
             state: update.done ? "complete" : "streaming",
+            isError: update.isError,
             at: now,
             updatedAt: now,
           });
