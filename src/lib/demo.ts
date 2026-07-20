@@ -42,28 +42,20 @@ await sandbox.exec.run(      // 3. Run Claude Code.
   },
 );`;
 
-const messageDeliveryConcept = `const command =
-  "claude --print --output-format stream-json --verbose " +
-  "--include-partial-messages < /tmp/task.txt"; // Inside sandbox.
-
-const decoder = new TextDecoder();
-let pending = "";
-const agentMessage = { text: "" };       // State owned by our app.
-run.messages.push(agentMessage);
+const messageDeliveryConcept = `const output = new ClaudeJsonLines(); // App-owned parser.
 
 const process = await sandbox.exec.start("sh", {
-  args: ["-c", command],
-  onStdout(bytes) {
-    pending += decoder.decode(bytes, { stream: true });
-    const lines = pending.split("\\n");
-    pending = lines.pop() ?? "";
-    for (const line of lines) {
-      const event = JSON.parse(line);    // Claude-specific output.
-      const delta = event.event?.delta;
-      if (delta?.type !== "text_delta") continue;
+  args: ["-c", [
+    "claude --print",
+    "--output-format stream-json",
+    "--verbose --include-partial-messages",
+    "< /tmp/task.txt",
+  ].join(" ")],                         // Command runs in sandbox.
 
-      agentMessage.text += delta.text;
-      runs.set(run.id, run);              // Browser polls our state.
+  onStdout(bytes) {                     // Callback runs in our API.
+    for (const message of output.write(bytes)) {
+      run.messages[message.id] = message;
+      runs.set(run.id, run);            // Browser polls our state.
     }
   },
 });
