@@ -187,15 +187,39 @@ textarea:focus-visible,
   min-width: max-content;
   margin: 0;
   font-family: var(--mono) !important;
-  font-size: 18px;
-  line-height: 1.42;
+  font-size: 1.25rem;
+  font-kerning: normal;
+  font-variant-ligatures: none;
+  letter-spacing: 0.01em;
+  line-height: 1.38;
   tab-size: 2;
 }
 
 .code-line {
-  min-height: 1.42em;
+  min-height: 1.38em;
   display: flex;
   padding-right: 32px;
+}
+
+.code-line.is-comment {
+  min-height: 1.05em;
+  line-height: 1.05;
+}
+
+.code-line.is-comment .line-number,
+.code-line.is-comment .line-source {
+  font-size: 0.8em;
+  font-weight: 560;
+  letter-spacing: 0.02em;
+}
+
+.code-line.is-empty {
+  min-height: 0.55em;
+  line-height: 0.55;
+}
+
+.code-line.is-empty .line-number {
+  font-size: 0;
 }
 
 .code-line.is-emphasized {
@@ -555,7 +579,7 @@ textarea:focus-visible,
   }
 
   .code-block {
-    font-size: 20px;
+    font-size: 1.375rem;
   }
 
   .line-number {
@@ -608,7 +632,7 @@ textarea:focus-visible,
   }
 
   .code-block {
-    font-size: 15px;
+    font-size: 1rem;
   }
 
   .line-number {
