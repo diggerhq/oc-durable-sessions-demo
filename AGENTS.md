@@ -7,16 +7,17 @@ unshipped calls are mocked and recorded as gaps.
 
 ## Read order
 
-1. `notes/original-prompt.md` — the brief, preserved verbatim.
-2. `notes/demo-script.md` — the intended video sequence and talk track.
-3. `notes/api-gap-ledger.md` — shipped, adapted, and missing contracts.
-4. `src/lib/scenarios.ts` — the examples the viewer actually sees.
-5. `server/index.ts` — the only place that holds an org key or calls the SDK.
+1. `PRODUCT.md` — users, purpose, and the deliberately bare product register.
+2. `notes/original-prompt.md` — the brief, preserved verbatim.
+3. `notes/demo-script.md` — the intended video sequence and talk track.
+4. `notes/api-gap-ledger.md` — shipped, adapted, and missing contracts.
+5. `src/lib/scenarios.ts` — the examples the viewer actually sees.
+6. `server/index.ts` — the only place that holds an org key or calls the SDK.
 
 ## Invariants
 
-- Code is the visual subject. Keep the interface calm, legible, and usable in a
-  16:9 screen recording.
+- Code is the visual subject. The on-screen product contains only example
+  switching, code, execution controls, and results. Narrative belongs in notes.
 - Never imply that a proposed API is shipped. The UI and gap ledger distinguish
   `public API`, `proposed API + live stand-in`, and `simulated`.
 - The browser never receives `OPENCOMPUTER_API_KEY` or a session client token.
@@ -41,4 +42,3 @@ shipped SDK disagree, record the mismatch in `notes/api-gap-ledger.md`.
 - Do not make production API or dashboard changes from this repository.
 - Do not turn an aspirational example into a backend contract silently. Design
   and implement that change in the owning repository first.
-

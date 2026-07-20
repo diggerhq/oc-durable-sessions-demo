@@ -1,4 +1,3 @@
-import { Code2 } from "lucide-react";
 import { Highlight, themes } from "prism-react-renderer";
 import type { DemoScenario } from "../lib/scenarios";
 
@@ -10,10 +9,7 @@ export function CodePanel({ scenario }: CodePanelProps) {
   return (
     <section className="code-panel" aria-label={`${scenario.navLabel} SDK example`}>
       <header className="panel-header code-panel-header">
-        <div className="file-label">
-          <Code2 aria-hidden="true" size={15} strokeWidth={1.8} />
-          <span>start-session.ts</span>
-        </div>
+        <span>start-session.ts</span>
         <span className={`contract-tag contract-${scenario.contractKind}`}>
           {scenario.contractLabel}
         </span>
@@ -60,4 +56,3 @@ export function CodePanel({ scenario }: CodePanelProps) {
     </section>
   );
 }
-

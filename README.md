@@ -1,14 +1,8 @@
-# Durable Agent Sessions — demo studio
+# Durable Agent Sessions API demo
 
-A local, code-first presentation app for this story:
-
-> Start a durable session with one small call. Change the runtime. Grow from
-> inline behavior to a versioned agent in a repository. Keep the same session
-> API even when the agent is a custom Flue application.
-
-This first cut is for recording an aspirational walkthrough and collecting
-feedback. It calls OpenComputer's public API where the contract exists and uses
-clearly marked mocks or live stand-ins where it does not.
+A local UI for switching between SDK examples, running them, and inspecting the
+session response. It calls OpenComputer's public API where the contract exists
+and uses marked mocks or live stand-ins where it does not.
 
 ## Run it
 
@@ -51,12 +45,11 @@ that contract exists, their live mode calls the configured saved agent as a
 stand-in. The saved-agent and Flue examples use the public contract exactly.
 Prompt-and-skills repository agents are still a documented gap.
 
-## Presenter controls
+## Controls
 
-- click a numbered step or use `←` / `→`;
-- click **Run session** or press `R`;
+- click an example tab or use `←` / `→`;
+- click **Run** or press `R`;
 - edit the task before running;
-- toggle **Presenter notes** for the talk-track cue;
 - open a live run directly in the OpenComputer dashboard from its receipt.
 
 ## Repository map
@@ -76,4 +69,3 @@ notes/original-prompt.md   original brief, unchanged
 npm test
 npm run build
 ```
-

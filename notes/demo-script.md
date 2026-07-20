@@ -28,7 +28,7 @@ and archive the rehearsal sessions so the new rows are obvious.
 
 ### 1. Start with one durable session
 
-On screen: **01 · Claude**.
+On screen: **Claude**.
 
 Talk track:
 
@@ -45,7 +45,7 @@ use a saved Claude agent as a live stand-in.
 
 ### 2. Change the runtime, not the application
 
-Return and select **02 · Codex**.
+Return and select **Codex**.
 
 > That looks a lot like a managed Claude agent. But the durable session is an
 > OpenComputer primitive, not a Claude primitive. Change one line and the same
@@ -56,7 +56,7 @@ the dashboard.
 
 ### 3. Show where inline configuration stops scaling
 
-Select **03 · Inline behavior**.
+Select **Inline config**.
 
 > A one-off task is easy. A real agent has a system prompt, operating rules, and
 > skills. I could send all of that with every new session…
@@ -70,7 +70,7 @@ No dashboard detour is required here; one quick run is enough if pacing allows.
 
 ### 4. Define the agent once
 
-Select **04 · Saved agent**.
+Select **Agent**.
 
 > I define the agent once. Every new session pins the active revision—prompt,
 > model, runtime, and skills—so the application becomes small again.
@@ -84,7 +84,7 @@ skills, and Revisions. Edit the prompt and save.
 
 ### 5. Put the definition where teams already review changes
 
-Select **05 · Agent from repo**.
+Select **Repo agent**.
 
 > The dashboard is convenient, but it is not where a team wants to review a
 > growing prompt and skill tree. An agent can be sourced from a repository.
@@ -101,7 +101,7 @@ aspirational.
 
 ### 6. Replace the implementation, keep the session surface
 
-Select **06 · Flue app**.
+Select **Flue**.
 
 > A prompt and skills on Claude Code or Codex covers a lot. If I need custom
 > control flow or an agent framework, I can own the implementation too. This
@@ -134,4 +134,3 @@ translated into the same durable OpenComputer event log.
 - Prefer one clean dashboard refresh over waiting on camera.
 - If a run is slow, keep narrating the durability point; do not imply that
   session creation waits for the agent result.
-

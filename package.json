@@ -18,9 +18,7 @@
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.2.8",
-    "@fontsource-variable/newsreader": "^5.2.8",
     "@opencomputer/sdk": "^0.12.4",
-    "lucide-react": "^1.21.0",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
