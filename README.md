@@ -1,8 +1,9 @@
 # Durable Agent Sessions demo
 
-A local, code-first demo. The current step creates a real OpenComputer sandbox,
+A local, code-first demo. The first screen creates a real OpenComputer sandbox,
 checks out a disposable repository, runs Claude Code on a Slack-style request,
-and opens a real pull request.
+and opens a real pull request. The second shows the code required to get the
+agent's live messages out of that sandbox and into the app.
 
 There is no mock mode.
 
@@ -41,9 +42,11 @@ The browser never receives these values.
 2. Creates a 4 GB sandbox with a 15-minute idle timeout.
 3. Passes the GitHub token to the checkout command and clones
    `diggerhq/oc-agent-demo-target` onto a unique branch.
-4. Passes both raw tokens to Claude Code with the edited Slack message.
-5. Waits for Claude to test, commit, push, and open a pull request.
-6. Verifies the PR through GitHub CLI and exposes links to the sandbox and PR.
+4. Starts Claude Code with streaming JSON output and both raw tokens.
+5. Receives stdout bytes over the sandbox exec WebSocket, frames JSON Lines,
+   and assembles Claude text deltas into an in-memory message list.
+6. Lets the browser poll that local message list while Claude works.
+7. Verifies the PR through GitHub CLI and exposes links to the sandbox and PR.
 
 The sandbox is intentionally left available so it can be opened in the
 OpenComputer dashboard during the recording. Close rehearsal PRs, delete their
@@ -51,8 +54,9 @@ branches, and stop their sandboxes when they are no longer useful.
 
 ## Controls
 
-- switch between the spacious **Concept** view and the exact **Full source**
-  imported by the local API;
+- switch between **Naive sandbox** and **Message delivery**;
+- switch each screen between the spacious **Concept** view and the exact
+  **Full source** imported by the local API;
 - edit the Slack message;
 - click **Run** or press `R` while focus is outside the editor;
 - open the sandbox as soon as it exists;
@@ -63,6 +67,7 @@ branches, and stop their sandboxes when they are no longer useful.
 ```text
 src/lib/demo.ts                    code shown on screen
 src/lib/naive-sandbox-run.ts       exact source shown and executed
+src/lib/stream-claude-messages.ts  exact stdout relay shown and executed
 src/components/                    code and live-run panels
 server/index.ts                    local API and run projection
 notes/demo-script.md               recording sequence

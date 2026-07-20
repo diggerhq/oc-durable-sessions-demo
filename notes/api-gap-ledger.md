@@ -1,7 +1,7 @@
 # API and durability ledger
 
-This file records the boundary between the real first demo beat and the durable
-session behavior that later beats will introduce.
+This file records the boundary between the real sandbox demo beats and the
+durable session behavior that later beats will introduce.
 
 ## Current beat
 
@@ -11,13 +11,15 @@ session behavior that later beats will introduce.
 | Create the sandbox | `Sandbox.create({ image, timeout, memoryMB })` | Public TypeScript SDK |
 | Clone and prepare the repository | `sandbox.exec.run()` | Public TypeScript SDK |
 | Write the Claude task | `sandbox.files.write()` | Public TypeScript SDK |
-| Pass raw credentials to checkout and Claude | `sandbox.exec.run({ env })` | Public TypeScript SDK |
-| Run Claude Code | `sandbox.exec.run()` | Public TypeScript SDK |
+| Pass raw credentials to checkout and Claude | `sandbox.exec.run/start({ env })` | Public TypeScript SDK |
+| Start Claude and receive stdout bytes | `sandbox.exec.start({ onStdout })` | Public TypeScript SDK |
+| Frame and parse Claude stream events | Local `ClaudeJsonLineRelay` | Application-owned, provider-specific code |
+| Assemble and expose messages | Local in-memory run + browser polling | Application-owned, ephemeral code |
 | Inspect the sandbox | `/sandboxes/<sandbox-id>` dashboard route | Shipped dashboard |
 | Verify the PR | GitHub CLI against the disposable target | Live external API |
 
 There are no mocks, stand-ins, proposed calls, or required `sessions-api`
-changes in this beat.
+changes in these beats.
 
 ## Observed platform papercuts
 
@@ -57,17 +59,33 @@ egress, and `exec.run({ env })` can pass the raw tokens to only the checkout and
 Claude processes. The demo uses that simpler public contract. This is still a
 deliberately naive credential model, not the recommended product security path.
 
+### Streaming exec needs a Node WebSocket shim
+
+The SDK package supports Node 18+, but its streaming exec client constructs the
+global `WebSocket`. The local Node runtime used by this demo does not provide
+that global, so `sandbox.exec.start()` fails before connecting unless the app
+installs `ws` as `globalThis.WebSocket`. The exact relay contains that shim.
+The SDK should either provide its own Node transport or document and package the
+required peer dependency.
+
 ## Deliberately naive durability boundary
 
-The working first beat leaves all of these responsibilities in the local demo
+The working sandbox beats leave all of these responsibilities in the local demo
 application:
 
 - Sandbox creation has no caller-supplied idempotency key. The server dedupes a
   repeated request id only in memory and only while this process survives.
-- `exec.run()` is synchronous. If the local process dies during Claude's run,
-  Claude may continue in the sandbox but the application loses its run record,
-  sandbox id, branch, progress, and completion path.
-- Progress is a local list of orchestration milestones, not a durable event log.
+- `exec.start()` delivers stdout through a live WebSocket callback. If the local
+  process or socket dies, the app loses the run record, sandbox id, branch,
+  messages, and completion path. This demo asks the platform to end the exec 30
+  seconds after that connection disappears.
+- Stdout chunks have neither JSON-Line nor UTF-8 boundaries. The application
+  owns byte decoding, framing, parsing, text-block assembly, and error handling.
+- The message parser is coupled to Claude Code's `stream-json` event schema.
+- Progress and assembled messages live only in a capped in-memory map. They are
+  not a durable event log.
+- The browser polls the local map every 900 ms. There is no durable cursor,
+  replay, acknowledgement, or reconnect contract.
 - There is no durable session identity to reconnect, stream, steer, cancel,
   fork, archive, or resume.
 - The application owns checkout, branch naming, Git identity, task formatting,

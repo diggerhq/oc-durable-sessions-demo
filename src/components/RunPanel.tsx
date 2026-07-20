@@ -6,6 +6,8 @@ interface RunPanelProps {
   message: string;
   run: DemoRun | null;
   runError?: string;
+  outputView: "progress" | "messages";
+  slideLabel: string;
   starting: boolean;
   onMessage: (value: string) => void;
   onRun: () => void;
@@ -22,6 +24,8 @@ export function RunPanel({
   message,
   run,
   runError,
+  outputView,
+  slideLabel,
   starting,
   onMessage,
   onRun,
@@ -31,7 +35,7 @@ export function RunPanel({
   const buttonLabel = running ? "Running…" : run ? "Run again" : "Run";
 
   return (
-    <section className="run-panel" aria-label="Run naive sandbox example">
+    <section className="run-panel" aria-label={`Run ${slideLabel} example`}>
       <header className="panel-header run-panel-header">
         <span>Run</span>
         <span
@@ -107,30 +111,78 @@ export function RunPanel({
               </div>
             )}
 
-            <ol className="progress-list">
-              {run.progress.map((item, index) => {
-                const current =
-                  run.state === "running" && index === run.progress.length - 1;
-                return (
-                  <li className={current ? "current" : ""} key={`${item.at}-${item.stage}`}>
-                    <span aria-hidden="true" />
-                    <div>
-                      <strong>{item.label}</strong>
-                      <time dateTime={item.at}>
-                        {new Date(item.at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
-                      </time>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
+            {outputView === "progress" ? (
+              <ol className="progress-list">
+                {run.progress.map((item, index) => {
+                  const current =
+                    run.state === "running" &&
+                    index === run.progress.length - 1;
+                  return (
+                    <li
+                      className={current ? "current" : ""}
+                      key={`${item.at}-${item.stage}`}
+                    >
+                      <span aria-hidden="true" />
+                      <div>
+                        <strong>{item.label}</strong>
+                        <time dateTime={item.at}>
+                          {new Date(item.at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </time>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <div className="message-stream">
+                {run.messages.length === 0 ? (
+                  <div className="message-stream-empty">
+                    {run.state === "running" && (
+                      <span className="button-spinner" aria-hidden="true" />
+                    )}
+                    {run.state === "running"
+                      ? "Waiting for sandbox stdout…"
+                      : "No assistant messages received."}
+                  </div>
+                ) : (
+                  run.messages.map((item) => (
+                    <article className="sandbox-message" key={item.id}>
+                      <header>
+                        <strong>Agent</strong>
+                        <time dateTime={item.at}>
+                          {new Date(item.at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </time>
+                      </header>
+                      <pre>
+                        {item.text}
+                        {item.state === "streaming" && (
+                          <span className="message-cursor" aria-hidden="true">
+                            ▌
+                          </span>
+                        )}
+                      </pre>
+                    </article>
+                  ))
+                )}
+              </div>
+            )}
 
             <div className="receipt-facts">
               <span>{formatDuration(run.durationMs)}</span>
+              {outputView === "messages" && (
+                <span>
+                  {run.messages.length} message
+                  {run.messages.length === 1 ? "" : "s"}
+                </span>
+              )}
               {run.branch && <span>{run.branch}</span>}
               {run.claudeSessionId && <span>claude {run.claudeSessionId}</span>}
             </div>
@@ -152,8 +204,12 @@ export function RunPanel({
               )}
             </div>
 
-            {run.error && <pre className="run-output output-error">{run.error}</pre>}
-            {run.result && <pre className="run-output">{run.result}</pre>}
+            {run.error && (
+              <pre className="run-output output-error">{run.error}</pre>
+            )}
+            {run.result && outputView === "progress" && (
+              <pre className="run-output">{run.result}</pre>
+            )}
           </div>
         )}
       </div>

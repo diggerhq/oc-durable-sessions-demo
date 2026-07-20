@@ -74,7 +74,7 @@ textarea:focus-visible,
   border: 0;
   color: var(--ink);
   background: transparent;
-  cursor: default;
+  cursor: pointer;
   font-size: 15px;
   font-weight: 620;
 }
@@ -93,6 +93,14 @@ textarea:focus-visible,
   bottom: 0;
   left: 18px;
   content: "";
+  background: transparent;
+}
+
+.example-tabs button:hover:not(.active) {
+  background: #f8f8f5;
+}
+
+.example-tabs button.active::after {
   background: var(--accent);
 }
 
@@ -497,6 +505,68 @@ textarea:focus-visible,
   color: #92928b;
   font-family: var(--mono);
   font-size: 10px;
+}
+
+.message-stream {
+  border-bottom: 1px solid var(--rule);
+}
+
+.message-stream-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.sandbox-message {
+  padding: 17px 20px 19px;
+}
+
+.sandbox-message + .sandbox-message {
+  border-top: 1px solid var(--rule);
+}
+
+.sandbox-message header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sandbox-message header strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sandbox-message header time {
+  color: #92928b;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.sandbox-message pre {
+  margin: 0;
+  color: #353531;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.message-cursor {
+  color: var(--accent);
+  animation: cursor-blink 900ms steps(1, end) infinite;
+}
+
+@keyframes cursor-blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 .receipt-facts {

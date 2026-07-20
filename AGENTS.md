@@ -2,8 +2,9 @@
 
 This repository is a local, code-first demonstration of why an agent that
 merely runs in a sandbox is not yet a durable agent session. The first beat is a
-real naive implementation; later beats will expose its failure modes and replace
-them with OpenComputer Durable Agent Sessions.
+real naive implementation; the second exposes the work required to deliver its
+messages. Later beats will expose more failure modes and replace the local
+orchestration with OpenComputer Durable Agent Sessions.
 
 ## Read order
 
@@ -15,23 +16,25 @@ them with OpenComputer Durable Agent Sessions.
 6. `src/lib/demo.ts` — the conceptual code the viewer sees first.
 7. `src/lib/naive-sandbox-run.ts` — exact runner source shown by the Full
    source toggle and imported by the server.
-8. `server/index.ts` — the local API and in-memory run projection.
+8. `src/lib/stream-claude-messages.ts` — exact stdout relay shown by the second
+   Full source toggle and used by the runner.
+9. `server/index.ts` — the local API and in-memory run projection.
 
 ## Invariants
 
 - Code is the visual subject. The screen contains only step selection, code,
   execution controls, progress, and real result links.
 - There are no mocks, stand-ins, or simulated receipts.
-- The first beat intentionally uses low-level sandbox primitives and preserves
-  their weaknesses. Do not quietly add managed-session behavior to make the
-  naive path look durable.
+- The first two beats intentionally use low-level sandbox primitives and
+  preserve their weaknesses. Do not quietly add managed-session behavior to
+  make the naive path look durable.
 - The browser never receives an OpenComputer, Anthropic, or GitHub credential.
 - The only writable GitHub target is the explicitly configured disposable
   demo repository.
 - A successful run is not complete until the server verifies an actual open
   pull-request URL for that run's branch.
-- The Full source view imports `naive-sandbox-run.ts` as raw text while the
-  server imports its function. Do not duplicate or hand-maintain that source.
+- Each Full source view raw-imports the same module the server executes. Do not
+  duplicate or hand-maintain runnable source for the UI.
 - The sandbox stays available long enough to open it during the demo. Do not
   kill it on success.
 

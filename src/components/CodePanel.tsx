@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Highlight, themes } from "prism-react-renderer";
 import type { CodeViewId, DemoSlide } from "../lib/demo";
 
@@ -11,6 +11,8 @@ export function CodePanel({ slide }: CodePanelProps) {
   const view =
     slide.codeViews.find((candidate) => candidate.id === viewId) ??
     slide.codeViews[0];
+
+  useEffect(() => setViewId("concept"), [slide.id]);
 
   return (
     <section className="code-panel" aria-label={`${slide.navLabel} SDK example`}>

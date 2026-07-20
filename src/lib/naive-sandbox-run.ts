@@ -1,9 +1,14 @@
 import { Sandbox } from "@opencomputer/sdk";
 import { Image } from "@opencomputer/sdk/node";
+import {
+  streamClaudeMessages,
+  type ClaudeMessageUpdate,
+} from "./stream-claude-messages";
 
 export async function runNaiveSandbox(
   config: NaiveSandboxRunConfig,
   onEvent: (event: NaiveSandboxRunEvent) => void,
+  onMessage: (update: ClaudeMessageUpdate) => void,
 ): Promise<NaiveSandboxRunResult> {
   onEvent({ stage: "preparing_image", label: "Creating sandbox" });
 
@@ -60,27 +65,16 @@ export async function runNaiveSandbox(
   await sandbox.files.write("/tmp/task.txt", task);
 
   onEvent({ stage: "running_claude", label: "Claude Code is working" });
-  const claude = await sandbox.exec.run(
-    [
-      "claude --print",
-      "--bare",
-      "--dangerously-skip-permissions",
-      "--max-turns 30",
-      "--max-budget-usd 3",
-      "--output-format json",
-      "< /tmp/task.txt",
-    ].join(" "),
+  const claude = await streamClaudeMessages(
+    sandbox,
     {
       cwd: "/workspace/repo",
-      timeout: 10 * 60,
-      env: {
-        ANTHROPIC_API_KEY: config.anthropicApiKey,
-        GH_TOKEN: config.githubToken,
-      },
+      promptPath: "/tmp/task.txt",
+      anthropicApiKey: config.anthropicApiKey,
+      githubToken: config.githubToken,
     },
+    onMessage,
   );
-  assertSuccess(claude, "Claude Code");
-  const parsed = parseClaudeResult(claude.stdout);
 
   onEvent({
     stage: "verifying_pull_request",
@@ -105,7 +99,7 @@ export async function runNaiveSandbox(
 
   const verifiedUrl =
     pullRequestUrl(pullRequest.stdout, config.targetRepo) ||
-    pullRequestUrl(parsed.result ?? "", config.targetRepo);
+    pullRequestUrl(claude.result ?? "", config.targetRepo);
   if (!verifiedUrl) {
     throw new Error("Claude Code finished without opening a pull request.");
   }
@@ -114,8 +108,8 @@ export async function runNaiveSandbox(
     sandboxId: sandbox.id,
     branch,
     pullRequestUrl: verifiedUrl,
-    result: parsed.result,
-    claudeSessionId: parsed.sessionId,
+    result: claude.result,
+    claudeSessionId: claude.claudeSessionId,
   };
 }
 
@@ -167,24 +161,6 @@ function assertSuccess(result: CommandResult, action: string): void {
       detail ? `: ${detail}` : "."
     }`,
   );
-}
-
-function parseClaudeResult(stdout: string): {
-  result?: string;
-  sessionId?: string;
-} {
-  const trimmed = stdout.trim();
-  if (!trimmed) return {};
-  try {
-    const value = JSON.parse(trimmed) as Record<string, unknown>;
-    return {
-      result: typeof value.result === "string" ? value.result : trimmed,
-      sessionId:
-        typeof value.session_id === "string" ? value.session_id : undefined,
-    };
-  } catch {
-    return { result: trimmed };
-  }
 }
 
 function pullRequestUrl(value: string, targetRepo: string): string | undefined {

@@ -167,6 +167,7 @@ function currentRun(run: DemoRun): DemoRun {
         ? Date.now() - Date.parse(run.startedAt)
         : run.durationMs,
     progress: run.progress.map((item) => ({ ...item })),
+    messages: run.messages.map((message) => ({ ...message })),
     sandbox: run.sandbox ? { ...run.sandbox } : undefined,
   };
 }
@@ -197,6 +198,27 @@ async function executeRun(run: DemoRun, message: string): Promise<void> {
         }
         if (event.branch) run.branch = event.branch;
         transition(run, event.stage, event.label);
+      },
+      (update) => {
+        const now = new Date().toISOString();
+        const existing = run.messages.find(
+          (message) => message.id === update.id,
+        );
+        if (existing) {
+          existing.text = safeText(update.text, 6_000);
+          existing.state = update.done ? "complete" : "streaming";
+          existing.updatedAt = now;
+        } else {
+          run.messages.push({
+            id: update.id,
+            text: safeText(update.text, 6_000),
+            state: update.done ? "complete" : "streaming",
+            at: now,
+            updatedAt: now,
+          });
+          if (run.messages.length > 25) run.messages.shift();
+        }
+        run.updatedAt = now;
       },
     );
 
@@ -233,6 +255,7 @@ function beginRun(message: string, requestId: string): DemoRun {
         at: now,
       },
     ],
+    messages: [],
   };
 
   runs.set(id, run);

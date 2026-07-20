@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { activeSlide, slides } from "./demo";
 
 describe("durability demo", () => {
-  it("starts with only the real naive sandbox example", () => {
-    expect(slides).toHaveLength(1);
+  it("starts with the naive run and follows with message delivery", () => {
+    expect(slides.map((slide) => slide.id)).toEqual([
+      "naive-sandbox",
+      "message-delivery",
+    ]);
     expect(activeSlide.id).toBe("naive-sandbox");
   });
 
@@ -22,5 +25,16 @@ describe("durability demo", () => {
     expect(source?.filename).toBe("naive-sandbox-run.ts");
     expect(source?.code).toContain("export async function runNaiveSandbox");
     expect(source?.code).toContain("Claude Code finished without opening");
+  });
+
+  it("shows the exact stdout relay behind message delivery", () => {
+    const delivery = slides.find((slide) => slide.id === "message-delivery");
+    const concept = delivery?.codeViews.find((view) => view.id === "concept");
+    const source = delivery?.codeViews.find((view) => view.id === "source");
+
+    expect(concept?.code).toContain("onStdout(bytes)");
+    expect(concept?.code).toContain("run.messages.append");
+    expect(source?.code).toContain("export async function streamClaudeMessages");
+    expect(source?.code).toContain("content_block_delta");
   });
 });

@@ -13,12 +13,14 @@ import { activeSlide, slides } from "./lib/demo";
 const POLL_INTERVAL_MS = 900;
 
 export default function App() {
+  const [activeIndex, setActiveIndex] = useState(0);
   const [config, setConfig] = useState<DemoConfig | null>(null);
   const [configError, setConfigError] = useState<string>();
   const [message, setMessage] = useState(activeSlide.defaultMessage);
   const [run, setRun] = useState<DemoRun | null>(null);
   const [runError, setRunError] = useState<string>();
   const [starting, setStarting] = useState(false);
+  const slide = slides[activeIndex] ?? activeSlide;
 
   useEffect(() => {
     void loadDemoConfig()
@@ -109,9 +111,10 @@ export default function App() {
       <nav className="example-tabs" aria-label="Demo steps">
         {slides.map((slide, index) => (
           <button
-            aria-current="page"
-            className="active"
+            aria-current={index === activeIndex ? "page" : undefined}
+            className={index === activeIndex ? "active" : ""}
             key={slide.id}
+            onClick={() => setActiveIndex(index)}
             type="button"
           >
             <span>{String(index + 1).padStart(2, "0")}</span>
@@ -121,7 +124,7 @@ export default function App() {
       </nav>
 
       <main className="workbench">
-        <CodePanel slide={activeSlide} />
+        <CodePanel slide={slide} />
         <RunPanel
           config={config}
           configError={configError}
@@ -130,6 +133,8 @@ export default function App() {
           onRun={() => void start()}
           run={run}
           runError={runError}
+          outputView={slide.outputView}
+          slideLabel={slide.navLabel}
           starting={starting}
         />
       </main>

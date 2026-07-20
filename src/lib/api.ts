@@ -19,6 +19,14 @@ export interface RunProgress {
   at: string;
 }
 
+export interface SandboxMessage {
+  id: string;
+  text: string;
+  state: "streaming" | "complete";
+  at: string;
+  updatedAt: string;
+}
+
 export interface DemoRun {
   id: string;
   state: "running" | "succeeded" | "failed";
@@ -36,6 +44,7 @@ export interface DemoRun {
   result?: string;
   error?: string;
   progress: RunProgress[];
+  messages: SandboxMessage[];
 }
 
 interface ApiError {
