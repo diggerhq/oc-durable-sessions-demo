@@ -91,12 +91,16 @@ npm run dev
 ```
 
 `doctor` checks required variable names and formats without printing their
-values. Then open [http://localhost:4173](http://localhost:4173). The Run panel
-should say **Live** on every screen.
+values. `npm run dev` prints the exact browser URL; it is normally
+[http://localhost:4173](http://localhost:4173). The Run panel should say
+**Live** on every screen.
 
-If port `4173` is occupied, Vite prints the replacement URL. If `doctor` reports
-a missing variable, install the bundle again after moving the existing
-`.env.local`, or fill that variable manually.
+If another local process already uses port `4173`, Vite chooses the next free
+port and prints the URL to open. The local API runs inside that same process, so
+the selected page always talks to the matching checkout; there is no second API
+port to collide or become stale. If `doctor` reports a missing variable,
+install the bundle again after moving the existing `.env.local`, or fill that
+variable manually.
 
 ## Hand this repository to an agent
 
@@ -153,9 +157,11 @@ OPENCOMPUTER_DASHBOARD_URL=https://app.opencomputer.dev
 DEMO_API_PORT=8789
 ```
 
-The URLs, target branch, security model, and port already have working defaults.
-`DEMO_SESSION_AGENT_ID` is an identifier rather than a credential. Do not expose
-or commit the other three values.
+The URLs, target branch, security model, and standalone API port already have
+working defaults. `DEMO_API_PORT` is used only by `npm run dev:api`; normal
+`npm run dev` serves the page and local API together on the URL Vite prints.
+`DEMO_SESSION_AGENT_ID` is an identifier rather than a credential. Do not
+expose or commit the other three values.
 
 ## What Run does
 

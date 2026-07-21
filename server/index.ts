@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   createServer,
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
+import { resolve } from "node:path";
 import process from "node:process";
 import type {
   DemoConfig,
@@ -394,7 +396,10 @@ function beginRun(
   return run;
 }
 
-const server = createServer(async (request, response) => {
+export async function handleDemoRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<void> {
   const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
 
   if (request.method === "GET" && url.pathname === "/api/config") {
@@ -469,12 +474,28 @@ const server = createServer(async (request, response) => {
   }
 
   sendJson(response, 404, { error: { message: "Not found." } });
-});
+}
 
-server.listen(port, "127.0.0.1", () => {
-  const status =
-    missingConfig().length === 0
-      ? `live target=${targetRepo}`
-      : `unavailable missing=${missingConfig().join(",")}`;
-  console.log(`Demo API listening on http://127.0.0.1:${port} (${status})`);
-});
+export function startDemoApi(): ReturnType<typeof createServer> {
+  const server = createServer((request, response) => {
+    void handleDemoRequest(request, response).catch((error) => {
+      if (!response.headersSent) {
+        sendJson(response, 500, { error: { message: errorMessage(error) } });
+      } else {
+        response.destroy(error instanceof Error ? error : undefined);
+      }
+    });
+  });
+  server.listen(port, "127.0.0.1", () => {
+    const status =
+      missingConfig().length === 0
+        ? `live target=${targetRepo}`
+        : `unavailable missing=${missingConfig().join(",")}`;
+    console.log(`Demo API listening on http://127.0.0.1:${port} (${status})`);
+  });
+  return server;
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  startDemoApi();
+}

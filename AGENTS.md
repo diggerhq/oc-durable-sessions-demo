@@ -28,7 +28,9 @@ explicitly ignored by Git; they must never be committed.
    shown by the third Full source toggle.
 10. `src/lib/durable-session-run.ts` — the exact Durable Agent Sessions runner
     shown by the fourth Full source toggle and imported by the server.
-11. `server/index.ts` — the local API and in-memory screen projection.
+11. `server/index.ts` — the local API and in-memory screen projection. Vite
+    mounts its exported handler in development; `npm run dev:api` starts it as
+    a standalone server when needed.
 
 ## Invariants
 

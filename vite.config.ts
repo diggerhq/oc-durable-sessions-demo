@@ -1,21 +1,28 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Connect, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { handleDemoRequest } from "./server/index";
 
-const apiPort = process.env.DEMO_API_PORT ?? "8789";
+function localDemoApi(): Plugin {
+  const mount = (middlewares: Connect.Server) => {
+    middlewares.use((request, response, next) => {
+      if (!request.url?.startsWith("/api/")) return next();
+      void handleDemoRequest(request, response).catch(next);
+    });
+  };
+
+  return {
+    name: "local-demo-api",
+    configureServer: (server) => mount(server.middlewares),
+    configurePreviewServer: (server) => mount(server.middlewares),
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), localDemoApi()],
   server: {
     port: 4173,
-    proxy: {
-      "/api": `http://127.0.0.1:${apiPort}`,
-    },
   },
   preview: {
     port: 4173,
-    proxy: {
-      "/api": `http://127.0.0.1:${apiPort}`,
-    },
   },
 });
-
